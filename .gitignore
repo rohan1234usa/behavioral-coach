@@ -1,0 +1,13 @@
+# Python junk
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables (Secrets)
+.env
+.env.local
+
+# Node/Web junk (just in case)
+node_modules/
+.next/
+dist/

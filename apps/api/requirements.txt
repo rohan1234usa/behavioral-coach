@@ -6,3 +6,5 @@ boto3
 python-dotenv
 pydantic-settings
 asyncio
+requests
+python-multipart
