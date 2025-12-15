@@ -31,10 +31,14 @@ export const api = {
     return res.data;
   },
 
-  // 2. Upload directly to S3 (PUT)
-  uploadVideo: async (url: string, file: Blob) => {
-    await axios.put(url, file, {
-      headers: { 'Content-Type': 'video/webm' } 
+  // NEW: Upload to our Python Backend (Bypasses all CORS/Docker issues)
+  uploadVideo: async (sessionId: number | string, file: Blob) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // We post to the endpoint we just created in Step 1
+    await axios.post(`${API_BASE}/sessions/${sessionId}/upload`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
 
