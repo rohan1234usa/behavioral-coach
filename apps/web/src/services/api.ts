@@ -1,0 +1,51 @@
+import axios from 'axios';
+
+const API_BASE = 'http://localhost:8000/api';
+
+// Types matching the Backend Schema
+export interface Session {
+  session_id: number;
+  upload_url: string;
+  video_key: string;
+}
+
+export interface AnalysisData {
+  confidence_score: number;
+  clarity_score: number;
+  resilience_score: number;
+  engagement_score: number;
+  metrics_data: {
+    timeline: Array<{
+      timestamp: number;
+      valence: number;
+      arousal: number;
+    }>;
+    feedback_tips: string[];
+  };
+}
+
+export const api = {
+  // 1. Get Presigned URL
+  startSession: async (question: string): Promise<Session> => {
+    const res = await axios.post(`${API_BASE}/upload/presigned-url`, { question });
+    return res.data;
+  },
+
+  // 2. Upload directly to S3 (PUT)
+  uploadVideo: async (url: string, file: Blob) => {
+    await axios.put(url, file, {
+      headers: { 'Content-Type': 'video/webm' } 
+    });
+  },
+
+  // 3. Trigger Mock Analysis
+  triggerAnalysis: async (sessionId: number) => {
+    await axios.post(`${API_BASE}/analysis/${sessionId}/trigger`);
+  },
+
+  // 4. Poll for Results
+  getResults: async (sessionId: string) => {
+    const res = await axios.get(`${API_BASE}/analysis/${sessionId}/result`);
+    return res.data; // Returns { status: "processing" | "completed", data: ... }
+  }
+};
