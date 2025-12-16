@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.endpoints import analysis, upload
+from app.api.endpoints import analysis, upload, sessions
 from app.db.base import Base, engine
 import boto3
 import os
@@ -57,6 +57,8 @@ async def upload_video_proxy(session_id: str, file: UploadFile = File(...)):
 # Existing Routes
 app.include_router(upload.router, prefix="/api/upload", tags=["Upload"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["Analysis"])
+app.include_router(sessions.router, prefix="/api/sessions", tags=["Sessions"])
+
 
 @app.get("/")
 def read_root():
