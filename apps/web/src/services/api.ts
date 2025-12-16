@@ -42,6 +42,17 @@ export const api = {
     });
   },
 
+  // NEW: Fetch history
+  getSessions: async () => {
+    const res = await axios.get(`${API_BASE}/sessions`);
+    return res.data;
+  },
+
+  // NEW: Helper to get the video URL
+  getVideoUrl: (sessionId: string) => {
+    return `${API_BASE}/sessions/${sessionId}/video`;
+  },
+
   // 3. Trigger Mock Analysis
   triggerAnalysis: async (sessionId: number) => {
     await axios.post(`${API_BASE}/analysis/${sessionId}/trigger`);
