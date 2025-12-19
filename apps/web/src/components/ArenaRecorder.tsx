@@ -1,56 +1,29 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useReactMediaRecorder } from 'react-media-recorder';
 import { useRouter } from 'next/navigation';
 import { Video, Square, Loader2 } from 'lucide-react';
 import { api } from '@/services/api';
 
-export default function ArenaRecorder() {
-  const router = useRouter();
+/**
+ * SUB-COMPONENT: InternalRecorder
+ * This component only renders once the library is loaded, 
+ * satisfying the Rules of Hooks.
+ */
+function InternalRecorder({ useRecorder, onUpload }: { useRecorder: any, onUpload: any }) {
   const [status, setStatus] = useState<'idle' | 'recording' | 'uploading'>('idle');
   const [timer, setTimer] = useState(0);
-
-  // 1. Define the upload logic
-  const handleUpload = async (blobUrl: string, blob: Blob) => {
-    console.log("🎥 Recording stopped. Blob ready:", blob.size, "bytes");
-    setStatus('uploading');
-
-    try {
-      console.log("🚀 Creating Session...");
-      const session = await api.startSession("Tell me about a time you failed.");
-      console.log("✅ Session Created ID:", session.session_id);
-
-      console.log("⬆️ Uploading Video to Backend Proxy...");
-      // FIX: We now pass session_id instead of the old upload_url
-      // The backend will handle the transfer to MinIO safely inside Docker.
-      await api.uploadVideo(session.session_id, blob);
-
-      console.log("✅ Upload Proxy Complete");
-
-      console.log("🧠 Triggering Analysis...");
-      await api.triggerAnalysis(session.session_id);
-
-      console.log("🎉 Done! Redirecting...");
-      router.push(`/results/${session.session_id}`);
-
-    } catch (err) {
-      console.error("❌ ERROR in flow:", err);
-      alert("Something went wrong. Check the Console (F12) for details.");
-      setStatus('idle');
-    }
-  };
-
-  // 2. Pass handleUpload to onStop
-  const { startRecording, stopRecording, previewStream } =
-    useReactMediaRecorder({
-      video: true,
-      audio: true,
-      blobPropertyBag: { type: 'video/webm' },
-      onStop: (blobUrl, blob) => handleUpload(blobUrl, blob)
-    });
-
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  const { startRecording, stopRecording, previewStream } = useRecorder({
+    video: true,
+    audio: true,
+    blobPropertyBag: { type: 'video/webm' },
+    onStop: (blobUrl: string, blob: Blob) => {
+      setStatus('uploading');
+      onUpload(blobUrl, blob);
+    }
+  });
 
   useEffect(() => {
     if (videoRef.current && previewStream) {
@@ -67,18 +40,8 @@ export default function ArenaRecorder() {
   }, [status]);
 
   return (
-    <div className="flex flex-col items-center w-full max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-lg">
-      <h1 className="text-2xl font-bold mb-6 text-gray-800">
-        Q: Tell me about a time you failed.
-      </h1>
-
+    <div className="w-full flex flex-col items-center">
       <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl mb-8">
-        {status !== 'recording' && status !== 'uploading' && !previewStream && (
-          <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-            Click 'Start Answer' to initialize camera
-          </div>
-        )}
-
         <video ref={videoRef} autoPlay muted className="w-full h-full object-cover" />
 
         {status === 'recording' && (
@@ -90,7 +53,7 @@ export default function ArenaRecorder() {
         {status === 'uploading' && (
           <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-white">
             <Loader2 className="w-12 h-12 animate-spin mb-2" />
-            <p>Uploading & Analyzing...</p>
+            <p className="text-lg">Analyzing with Imentiv AI...</p>
           </div>
         )}
       </div>
@@ -112,6 +75,52 @@ export default function ArenaRecorder() {
           </button>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/**
+ * MAIN COMPONENT: ArenaRecorder
+ * Handles dynamic library loading and session flow.
+ */
+export default function ArenaRecorder() {
+  const router = useRouter();
+  const [recorderHook, setRecorderHook] = useState<any>(null);
+
+  useEffect(() => {
+    const loadRecorder = async () => {
+      // Ensure we use the package you installed
+      const mod = await import('react-media-recorder-2');
+      setRecorderHook(() => mod.useReactMediaRecorder);
+    };
+    loadRecorder();
+  }, []);
+
+  const handleUploadFlow = async (blobUrl: string, blob: Blob) => {
+    try {
+      const session = await api.startSession("Tell me about a time you failed.");
+      await api.uploadVideo(session.session_id, blob);
+      await api.triggerAnalysis(session.session_id);
+      router.push(`/results/${session.session_id}`);
+    } catch (err) {
+      console.error("❌ ERROR:", err);
+      alert("Analysis failed. Check backend logs.");
+      window.location.reload(); // Reset state
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center w-full max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-lg">
+      <h1 className="text-2xl font-bold mb-6 text-gray-800">Q: Tell me about a time you failed.</h1>
+
+      {recorderHook ? (
+        <InternalRecorder useRecorder={recorderHook} onUpload={handleUploadFlow} />
+      ) : (
+        <div className="flex flex-col items-center justify-center p-20 text-gray-400">
+          <Loader2 className="w-10 h-10 animate-spin mb-4" />
+          <p>Initializing Media Engine...</p>
+        </div>
+      )}
     </div>
   );
 }

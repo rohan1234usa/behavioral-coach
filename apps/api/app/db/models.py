@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -14,7 +14,7 @@ class User(Base):
 class Session(Base):
     __tablename__ = "sessions"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True) # Nullable for guest users in MVP
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     
     question_text = Column(String)
     video_s3_key = Column(String)
@@ -30,13 +30,16 @@ class AnalysisResult(Base):
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(Integer, ForeignKey("sessions.id"), unique=True)
     
-    # Metrics defined in PRD Section 6
-    confidence_score = Column(Float) 
-    clarity_score = Column(Float)    
-    resilience_score = Column(Float) 
-    engagement_score = Column(Float) 
+    # Text-based insights
+    transcript = Column(Text, nullable=True) 
     
-    # Complex JSON data for graphs
+    # Metrics
+    confidence_score = Column(Float, default=0.0) 
+    clarity_score = Column(Float, default=0.0)    
+    resilience_score = Column(Float, default=0.0) 
+    engagement_score = Column(Float, default=0.0) 
+    
+    # Full JSON blob for frontend charts
     metrics_data = Column(JSONB)
     
     session = relationship("Session", back_populates="analysis")
