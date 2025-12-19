@@ -16,6 +16,7 @@
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "react-media-recorder": "^1.7.2",
+    "react-media-recorder-2": "^1.6.23",
     "recharts": "^3.5.1",
     "tailwind-merge": "^3.4.0"
   },

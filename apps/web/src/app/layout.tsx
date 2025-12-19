@@ -17,8 +17,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    // Add suppressHydrationWarning here
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className} suppressHydrationWarning>
         <div className="min-h-screen flex flex-col bg-gray-50">
 
           {/* NAVIGATION BAR */}

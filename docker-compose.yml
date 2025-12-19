@@ -26,6 +26,9 @@ services:
       - .env
     depends_on:
       - db
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/coach_dev
+      - IMENTIV_API_KEY=${IMENTIV_API_KEY}
 
   minio:
     image: minio/minio
