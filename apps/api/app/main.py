@@ -58,6 +58,8 @@ async def upload_video_proxy(session_id: str, file: UploadFile = File(...)):
 app.include_router(upload.router, prefix="/api/upload", tags=["Upload"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["Analysis"])
 app.include_router(sessions.router, prefix="/api/sessions", tags=["Sessions"])
+from app.api.endpoints import questions
+app.include_router(questions.router, prefix="/api/questions", tags=["Questions"])
 
 
 @app.get("/")

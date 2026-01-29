@@ -130,7 +130,7 @@ function InternalRecorder({ useRecorder, onUpload }: { useRecorder: any, onUploa
 /**
  * MAIN COMPONENT: ArenaRecorder
  */
-export default function ArenaRecorder() {
+export default function ArenaRecorder({ initialQuestion = "Describe a difficult colleague." }: { initialQuestion?: string }) {
   const router = useRouter();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [recorderHook, setRecorderHook] = useState<any>(null);
@@ -145,7 +145,7 @@ export default function ArenaRecorder() {
 
   const handleUploadFlow = async (blobUrl: string, blob: Blob) => {
     try {
-      const session = await api.startSession("Describe a difficult colleague.");
+      const session = await api.startSession(initialQuestion);
       await api.uploadVideo(session.session_id, blob);
       await api.triggerAnalysis(session.session_id);
       router.push(`/results/${session.session_id}`);
@@ -161,8 +161,8 @@ export default function ArenaRecorder() {
 
       {/* HEADER: SIMPLE TYPEWRITER */}
       <div className="w-full border-b border-border py-6 flex justify-center bg-surface sticky top-0 z-40">
-        <h1 className="text-lg font-sans font-bold text-foreground tracking-tight">
-          Module 01: <span className="text-muted-foreground font-normal">Conflict Resolution</span>
+        <h1 className="text-lg font-sans font-bold text-foreground tracking-tight max-w-2xl text-center px-4">
+          Module 01: <span className="text-muted-foreground font-normal">{initialQuestion}</span>
         </h1>
       </div>
 

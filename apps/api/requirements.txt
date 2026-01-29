@@ -8,3 +8,5 @@ pydantic-settings
 asyncio
 requests
 python-multipart
+google-generativeai
+pypdf

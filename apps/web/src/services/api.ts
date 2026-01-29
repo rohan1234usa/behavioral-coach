@@ -62,5 +62,19 @@ export const api = {
   getResults: async (sessionId: string) => {
     const res = await axios.get(`${API_BASE}/analysis/${sessionId}/result`);
     return res.data; // Returns { status: "processing" | "completed", data: ... }
+  },
+
+  // NEW: Generate Questions
+  generateQuestions: async (company: string, role: string, resumeFile?: File): Promise<string[]> => {
+    const formData = new FormData();
+    formData.append('company', company);
+    formData.append('role', role);
+    if (resumeFile) {
+      formData.append('resume', resumeFile);
+    }
+    const res = await axios.post(`${API_BASE}/questions/generate`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return res.data;
   }
 };
