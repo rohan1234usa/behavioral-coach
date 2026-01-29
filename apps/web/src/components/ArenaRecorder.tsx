@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Video, Square, Loader2 } from 'lucide-react';
+import { Loader2, Square, Circle, Mic } from 'lucide-react';
 import { api } from '@/services/api';
 
 /**
@@ -10,6 +10,7 @@ import { api } from '@/services/api';
  * This component only renders once the library is loaded, 
  * satisfying the Rules of Hooks.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function InternalRecorder({ useRecorder, onUpload }: { useRecorder: any, onUpload: any }) {
   const [status, setStatus] = useState<'idle' | 'recording' | 'uploading'>('idle');
   const [timer, setTimer] = useState(0);
@@ -34,62 +35,108 @@ function InternalRecorder({ useRecorder, onUpload }: { useRecorder: any, onUploa
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (status === 'recording') {
-      interval = setInterval(() => setTimer((t) => t + 1), 1000);
+      interval = setInterval(() => {
+        setTimer((t) => t + 1);
+      }, 1000);
     }
     return () => clearInterval(interval);
   }, [status]);
 
+  /**
+   * FORMAT: MM:SS
+   */
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
   return (
-    <div className="w-full flex flex-col items-center">
-      <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl mb-8">
-        <video ref={videoRef} autoPlay muted className="w-full h-full object-cover" />
+    <div className="w-full h-full flex flex-col items-center justify-center py-12">
 
-        {status === 'recording' && (
-          <div className="absolute top-4 right-4 bg-red-600/90 text-white px-4 py-1 rounded-full font-mono animate-pulse">
-            {new Date(timer * 1000).toISOString().substr(14, 5)}
-          </div>
-        )}
+      {/* THE OBJECT: 1:1 MONITOR */}
+      <div className="relative group">
+        {/* BEZEL */}
+        <div className="w-[80vw] max-w-[600px] aspect-square bg-gray-100 border-[3px] border-border shadow-[0_20px_40px_-10px_rgba(0,0,0,0.1)] p-1 transition-all duration-500">
 
-        {status === 'uploading' && (
-          <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-white">
-            <Loader2 className="w-12 h-12 animate-spin mb-2" />
-            <p className="text-lg">Analyzing with Imentiv AI...</p>
+          {/* SCREEN */}
+          <div className="w-full h-full bg-black relative overflow-hidden grayscale">
+            <video ref={videoRef} autoPlay muted className="w-full h-full object-cover opacity-90" />
+
+            {/* RECORDING INDICATOR (PHYSICAL DOT) */}
+            {status === 'recording' && (
+              <div className="absolute top-6 right-6 w-3 h-3 bg-red-600 rounded-full animate-pulse shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>
+            )}
           </div>
-        )}
+
+        </div>
+
+        {/* STATUS LABEL BELOW SCREEN */}
+        <div className="mt-6 flex justify-between items-center w-full px-2 max-w-[600px]">
+          <div className="flex flex-col">
+            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground font-sans">Sequence</span>
+            <span className="text-xl font-mono font-medium text-foreground">{formatTime(timer)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${status === 'idle' ? 'bg-accent' : 'bg-border'}`}></div>
+            <span className="text-xs uppercase tracking-widest text-muted-foreground font-sans">
+              {status === 'idle' ? 'Standby' : status === 'recording' ? 'Capture' : 'Process'}
+            </span>
+          </div>
+        </div>
       </div>
 
-      <div className="flex justify-center gap-4">
+      {/* CONTROLS: PHYSICAL INTERFACE */}
+      <div className="mt-16 flex items-center justify-center">
         {status === 'idle' ? (
           <button
             onClick={() => { startRecording(); setStatus('recording'); }}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-semibold transition-all"
+            className="group relative flex flex-col items-center gap-4 focus:outline-none"
           >
-            <Video className="w-5 h-5" /> Start Answer
+            {/* LARGE CLICKY BUTTON */}
+            <div className="w-20 h-20 rounded-full bg-white border-2 border-border shadow-[0_5px_0_rgba(200,200,200,1)] hover:translate-y-[2px] hover:shadow-[0_3px_0_rgba(200,200,200,1)] active:translate-y-[5px] active:shadow-none transition-all flex items-center justify-center">
+              <div className="w-8 h-8 bg-red-600 rounded-full group-hover:scale-110 transition-transform"></div>
+            </div>
+            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors font-sans">REC</span>
           </button>
         ) : status === 'recording' ? (
           <button
             onClick={stopRecording}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full font-semibold transition-all"
+            className="group relative flex flex-col items-center gap-4 focus:outline-none"
           >
-            <Square className="w-5 h-5" /> Finish Answer
+            {/* LARGE STOP BUTTON */}
+            <div className="w-20 h-20 rounded-full bg-white border-2 border-border shadow-[0_5px_0_rgba(200,200,200,1)] hover:translate-y-[2px] hover:shadow-[0_3px_0_rgba(200,200,200,1)] active:translate-y-[5px] active:shadow-none transition-all flex items-center justify-center">
+              <div className="w-8 h-8 bg-foreground rounded-sm"></div>
+            </div>
+            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors font-sans">STOP</span>
           </button>
         ) : null}
       </div>
+
+      {/* LOADER OVERLAY */}
+      {status === 'uploading' && (
+        <div className="fixed inset-0 bg-background/90 z-50 flex flex-col items-center justify-center">
+          <div className="w-16 h-1 bg-border overflow-hidden">
+            <div className="h-full bg-foreground animate-progress"></div>
+          </div>
+          <p className="mt-4 font-mono text-sm uppercase tracking-widest text-muted-foreground">Archiving...</p>
+        </div>
+      )}
+
     </div>
   );
 }
 
 /**
  * MAIN COMPONENT: ArenaRecorder
- * Handles dynamic library loading and session flow.
  */
 export default function ArenaRecorder() {
   const router = useRouter();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [recorderHook, setRecorderHook] = useState<any>(null);
 
   useEffect(() => {
     const loadRecorder = async () => {
-      // Ensure we use the package you installed
       const mod = await import('react-media-recorder-2');
       setRecorderHook(() => mod.useReactMediaRecorder);
     };
@@ -98,27 +145,32 @@ export default function ArenaRecorder() {
 
   const handleUploadFlow = async (blobUrl: string, blob: Blob) => {
     try {
-      const session = await api.startSession("Tell me about a time you failed.");
+      const session = await api.startSession("Describe a difficult colleague.");
       await api.uploadVideo(session.session_id, blob);
       await api.triggerAnalysis(session.session_id);
       router.push(`/results/${session.session_id}`);
     } catch (err) {
       console.error("❌ ERROR:", err);
-      alert("Analysis failed. Check backend logs.");
-      window.location.reload(); // Reset state
+      // alert("Analysis failed. Check backend logs.");
+      window.location.reload();
     }
   };
 
   return (
-    <div className="flex flex-col items-center w-full max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-lg">
-      <h1 className="text-2xl font-bold mb-6 text-gray-800">Q: Tell me about a time you failed.</h1>
+    <div className="flex flex-col items-center w-full min-h-screen bg-background text-foreground">
+
+      {/* HEADER: SIMPLE TYPEWRITER */}
+      <div className="w-full border-b border-border py-6 flex justify-center bg-surface sticky top-0 z-40">
+        <h1 className="text-lg font-sans font-bold text-foreground tracking-tight">
+          Module 01: <span className="text-muted-foreground font-normal">Conflict Resolution</span>
+        </h1>
+      </div>
 
       {recorderHook ? (
         <InternalRecorder useRecorder={recorderHook} onUpload={handleUploadFlow} />
       ) : (
-        <div className="flex flex-col items-center justify-center p-20 text-gray-400">
-          <Loader2 className="w-10 h-10 animate-spin mb-4" />
-          <p>Initializing Media Engine...</p>
+        <div className="flex flex-col items-center justify-center h-[60vh] text-muted-foreground">
+          <Loader2 className="w-8 h-8 animate-spin mb-4 text-foreground opacity-20" />
         </div>
       )}
     </div>

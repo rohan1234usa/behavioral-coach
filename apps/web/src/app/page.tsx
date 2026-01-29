@@ -1,92 +1,95 @@
 import Link from 'next/link';
-import { ArrowRight, Mic, Cpu, TrendingUp } from 'lucide-react';
+import { ArrowUpRight, Scale, Brain, Crosshair } from 'lucide-react';
 
 export default function LandingPage() {
   return (
-    <div className="bg-white">
+    <div className="flex flex-col min-h-screen bg-background text-foreground font-body">
+
       {/* HERO SECTION */}
-      <div className="relative isolate px-6 pt-14 lg:px-8">
-        <div className="mx-auto max-w-3xl py-32 sm:py-48 lg:py-56 text-center">
-          <div className="mb-8 flex justify-center">
-            <div className="relative rounded-full px-3 py-1 text-sm leading-6 text-gray-600 ring-1 ring-gray-900/10 hover:ring-gray-900/20">
-              New: Detailed Emotional Analytics Included.
-            </div>
+      <section className="relative px-6 py-24 md:py-32 lg:px-12 border-b-2 border-border grid-bg">
+        <div className="max-w-7xl mx-auto">
+
+          <div className="inline-block border-2 border-primary px-4 py-1 mb-8 bg-white shadow-[4px_4px_0_0_rgba(41,37,36,1)]">
+            <span className="font-sans font-bold uppercase tracking-widest text-xs">Behavioral Architecture v2.0</span>
           </div>
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl mb-6">
-            Master Your Presence with <span className="text-blue-600">AI Coaching</span>
+
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-sans font-bold uppercase tracking-tighter leading-[0.9] mb-12 text-foreground">
+            The Blueprint <br />
+            <span className="text-muted-foreground">of You</span>
           </h1>
-          <p className="mt-6 text-lg leading-8 text-gray-600 mb-10">
-            Stop guessing how you come across. Our AI analyzes your micro-expressions, vocal tone, and confidence in real-time to help you interview, present, and communicate like a pro.
+
+          <p className="max-w-2xl text-xl md:text-2xl leading-relaxed text-foreground/80 font-medium mb-12 border-l-4 border-accent pl-6">
+            We don't do "tips". We provide structural analysis of your speaking patterns.
+            Calibrate your confidence with <span className="font-bold border-b-2 border-accent">architectural precision</span>.
           </p>
-          <div className="flex items-center justify-center gap-x-6">
+
+          <div className="flex flex-col sm:flex-row gap-6">
             <Link
               href="/arena"
-              className="rounded-xl bg-blue-600 px-8 py-4 text-lg font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 transition-all flex items-center gap-2 hover:shadow-lg"
+              className="stone-button inline-flex items-center justify-center gap-3 text-lg"
             >
-              Start Practice Session <ArrowRight className="w-5 h-5" />
+              Enter The Arena <ArrowUpRight className="w-5 h-5" />
             </Link>
-            <Link href="/dashboard" className="text-sm font-semibold leading-6 text-gray-900 hover:text-blue-600 transition-colors">
-              View History <span aria-hidden="true">→</span>
+
+            <Link
+              href="/dashboard"
+              className="stone-button-secondary inline-flex items-center justify-center gap-3 text-lg bg-white"
+            >
+              View History
             </Link>
           </div>
+
         </div>
-      </div>
+      </section>
 
-      {/* FEATURE GRID SECTION */}
-      <div className="bg-gray-50 py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl lg:text-center">
-            <h2 className="text-base font-semibold leading-7 text-blue-600">Analyze Everything</h2>
-            <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              Everything you need to improve
-            </p>
-          </div>
-          <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-4xl">
-            <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-10 lg:max-w-none lg:grid-cols-3 lg:gap-y-16">
+      {/* THREE PILLARS */}
+      <section className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x-2 divide-border border-b-2 border-border">
 
-              {/* Feature 1 */}
-              <div className="relative pl-16">
-                <dt className="text-base font-semibold leading-7 text-gray-900">
-                  <div className="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600">
-                    <Mic className="h-6 w-6 text-white" aria-hidden="true" />
-                  </div>
-                  Vocal Analysis
-                </dt>
-                <dd className="mt-2 text-base leading-7 text-gray-600">
-                  Track your pacing, tone, and clarity to ensure your message lands with authority.
-                </dd>
-              </div>
+        <FeatureColumn
+          icon={<Scale className="w-8 h-8" />}
+          title="The Foundation"
+          desc="Vocal stability analysis to ensure your delivery can support heavy questioning."
+        />
 
-              {/* Feature 2 */}
-              <div className="relative pl-16">
-                <dt className="text-base font-semibold leading-7 text-gray-900">
-                  <div className="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600">
-                    <Cpu className="h-6 w-6 text-white" aria-hidden="true" />
-                  </div>
-                  Micro-Expression AI
-                </dt>
-                <dd className="mt-2 text-base leading-7 text-gray-600">
-                  Detect hidden moments of stress, hesitation, or genuine confidence in your facial cues.
-                </dd>
-              </div>
+        <FeatureColumn
+          icon={<Brain className="w-8 h-8" />}
+          title="The Framework"
+          desc="Cognitive load monitoring. We detect when your structural integrity is compromised."
+        />
 
-              {/* Feature 3 */}
-              <div className="relative pl-16">
-                <dt className="text-base font-semibold leading-7 text-gray-900">
-                  <div className="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600">
-                    <TrendingUp className="h-6 w-6 text-white" aria-hidden="true" />
-                  </div>
-                  Progress Tracking
-                </dt>
-                <dd className="mt-2 text-base leading-7 text-gray-600">
-                  Watch your scores improve over time with detailed session history and analytics.
-                </dd>
-              </div>
+        <FeatureColumn
+          icon={<Crosshair className="w-8 h-8" />}
+          title="The Facade"
+          desc="Micro-expression tracking. Ensure your external presentation matches your internal logic."
+        />
 
-            </dl>
-          </div>
-        </div>
-      </div>
+      </section>
+
+      {/* FOOTER CALL */}
+      <section className="py-24 px-6 text-center bg-foreground text-background">
+        <h2 className="text-4xl md:text-6xl font-sans font-bold uppercase tracking-tight mb-8">
+          Build your presence.
+        </h2>
+        <Link
+          href="/arena"
+          className="inline-block bg-background text-foreground px-8 py-4 font-sans font-bold uppercase tracking-widest text-lg hover:bg-white transition-colors"
+        >
+          Begin Calibration
+        </Link>
+      </section>
+
+    </div>
+  );
+}
+
+function FeatureColumn({ icon, title, desc }: { icon: any, title: string, desc: string }) {
+  return (
+    <div className="p-12 hover:bg-white transition-colors group">
+      <div className="mb-6 text-foreground group-hover:text-accent transition-colors">{icon}</div>
+      <h3 className="text-2xl font-sans font-bold uppercase tracking-tight mb-4">{title}</h3>
+      <p className="text-lg text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors">
+        {desc}
+      </p>
     </div>
   );
 }

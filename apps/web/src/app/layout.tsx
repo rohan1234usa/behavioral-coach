@@ -1,14 +1,25 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Space_Grotesk, IBM_Plex_Sans } from 'next/font/google';
 import Link from 'next/link';
-import { Sparkles, LayoutDashboard, Video } from 'lucide-react';
+import { Square } from 'lucide-react';
 
-const inter = Inter({ subsets: ['latin'] });
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-space',
+  display: 'swap',
+});
+
+const ibmPlex = IBM_Plex_Sans({
+  weight: ['400', '500', '600'],
+  subsets: ['latin'],
+  variable: '--font-ibm',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
-  title: 'Behavioral Coach AI',
-  description: 'Master your soft skills with real-time AI feedback.',
+  title: 'Behavioral Coach | Structure',
+  description: 'Honest feedback. Structural analysis. Human metrics.',
 };
 
 export default function RootLayout({
@@ -17,58 +28,52 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    // Add suppressHydrationWarning here
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning>
-        <div className="min-h-screen flex flex-col bg-gray-50">
+      <body className={`${spaceGrotesk.variable} ${ibmPlex.variable} font-body antialiased bg-background text-foreground`} suppressHydrationWarning>
+        <div className="min-h-screen flex flex-col border-x-8 border-background">
+          {/* Physical bevel effect on sides if desired, or just standard full width */}
 
-          {/* NAVIGATION BAR */}
-          <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex justify-between h-16">
-
-                {/* Left: Brand Logo */}
-                <div className="flex items-center">
-                  <Link href="/" className="flex items-center gap-2 text-xl font-bold text-gray-900 group">
-                    <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white transition-transform group-hover:scale-110">
-                      <Sparkles className="w-5 h-5" />
-                    </div>
-                    <span>Coach<span className="text-blue-600">AI</span></span>
-                  </Link>
+          {/* ARCHITECTURAL HEADER */}
+          <nav className="border-b-2 border-primary/10 bg-background sticky top-0 z-50 h-20 flex items-center justify-between px-6 md:px-12 backdrop-blur-sm">
+            <div className="flex items-center gap-12">
+              <Link href="/" className="flex items-center gap-3 text-foreground group">
+                <div className="w-6 h-6 bg-primary text-background flex items-center justify-center rounded-sm">
+                  <Square className="w-3 h-3 fill-current" />
                 </div>
-
-                {/* Right: Navigation Links */}
-                <div className="flex items-center gap-4">
-                  <Link
-                    href="/dashboard"
-                    className="flex items-center gap-2 text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                  >
-                    <LayoutDashboard className="w-4 h-4" />
-                    Dashboard
-                  </Link>
-
-                  <Link
-                    href="/arena"
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all hover:shadow-md"
-                  >
-                    <Video className="w-4 h-4" />
-                    New Session
-                  </Link>
-                </div>
-
+                <span className="font-sans font-bold text-xl tracking-tight uppercase group-hover:opacity-70 transition-opacity">
+                  Coach<span className="text-muted-foreground">.ai</span>
+                </span>
+              </Link>
+              <div className="hidden md:flex gap-8 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                <Link href="/dashboard" className="hover:text-foreground transition-colors">History</Link>
+                <Link href="/arena" className="hover:text-foreground transition-colors">Practice</Link>
+                <Link href="/settings" className="hover:text-foreground transition-colors">Settings</Link>
               </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <button className="hidden md:block px-4 py-2 border border-border text-xs font-bold uppercase tracking-widest hover:bg-secondary transition-colors">
+                Login
+              </button>
             </div>
           </nav>
 
           {/* MAIN CONTENT AREA */}
-          <main className="flex-grow">
+          <main className="flex-grow relative flex flex-col max-w-[1920px] mx-auto w-full bg-background">
             {children}
           </main>
 
           {/* FOOTER */}
-          <footer className="bg-white border-t border-gray-200 py-8 mt-auto">
-            <div className="max-w-7xl mx-auto px-4 text-center text-gray-400 text-sm">
-              &copy; {new Date().getFullYear()} Behavioral Coach AI. Built for excellence.
+          <footer className="border-t-2 border-primary/10 py-12 bg-background">
+            <div className="px-6 md:px-12 flex justify-between items-end">
+              <div className="flex flex-col gap-2">
+                <span className="font-sans font-bold text-2xl uppercase text-foreground/20">Coach.ai</span>
+                <span className="text-xs text-muted-foreground uppercase tracking-widest">© 2025 // Built with Honesty</span>
+              </div>
+              <div className="flex gap-8 text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                <a href="#" className="hover:text-foreground">Manifesto</a>
+                <a href="#" className="hover:text-foreground">Materials</a>
+                <a href="#" className="hover:text-foreground">Legal</a>
+              </div>
             </div>
           </footer>
 

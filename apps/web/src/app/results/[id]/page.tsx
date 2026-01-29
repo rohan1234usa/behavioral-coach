@@ -1,3 +1,5 @@
+/* eslint-disable react/no-unescaped-entities */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -5,193 +7,159 @@ import { api } from '@/services/api';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
+  ArrowLeft,
+  FileText,
+  Download,
+  Share2,
+  Clock,
+  User,
+  CheckCircle2,
+  AlertOctagon,
+  Minus
+} from 'lucide-react';
+import {
+  ResponsiveContainer,
   LineChart,
   Line,
   XAxis,
   YAxis,
-  Tooltip,
-  ResponsiveContainer,
   CartesianGrid,
-  Legend
+  Tooltip
 } from 'recharts';
-import {
-  Loader2,
-  CheckCircle,
-  Brain,
-  Zap,
-  Activity,
-  ArrowLeft,
-  PlayCircle
-} from 'lucide-react';
 
 export default function ResultPage() {
   const { id } = useParams();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  /**
-   * Helper: Formats raw seconds into a 0:SS string for the X-Axis
-   */
-  const formatXAxis = (tickItem: number) => {
-    const seconds = Math.floor(tickItem);
-    return `0:${seconds.toString().padStart(2, '0')}`;
-  };
-
   useEffect(() => {
     if (!id) return;
-
     const interval = setInterval(async () => {
       try {
         const result = await api.getResults(id as string);
-
-        // Only stop polling when backend confirms status is 'completed'
         if (result.status === 'completed' && result.data) {
-          const baseData = result.data;
-
-          /**
-           * Logic: Our backend saves the 'timeline' array inside 'metrics_data'.
-           * We merge them here so the chart can access 'data.timeline' directly.
-           */
-          const extendedData = baseData.metrics_data
-            ? { ...baseData, ...baseData.metrics_data }
-            : baseData;
-
-          setData(extendedData);
+          setData(result.data);
           setLoading(false);
           clearInterval(interval);
         }
       } catch (e) {
-        console.error("Polling error:", e);
+        // console.error(e);
       }
     }, 2000);
-
     return () => clearInterval(interval);
   }, [id]);
 
-  if (loading) {
-    return (
-      <div className="h-screen flex flex-col items-center justify-center bg-gray-50">
-        <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
-        <h2 className="text-xl font-semibold text-gray-700">AI Coach is analyzing your delivery...</h2>
-        <p className="text-gray-500">Extracting emotional markers and facial cues.</p>
+  if (loading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-4 animate-pulse">
+        <div className="w-12 h-12 border-4 border-border border-t-foreground rounded-full animate-spin"></div>
+        <span className="font-sans font-bold uppercase tracking-widest text-xs text-muted-foreground">Compiling Report...</span>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (!data) return <div className="p-8 text-center text-red-500">Error loading results.</div>;
+  if (!data) return <div className="p-8 text-destructive font-sans font-bold uppercase">Report Generation Failed</div>;
 
   const videoUrl = api.getVideoUrl(id as string);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 md:p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-background text-foreground font-body p-6 md:p-12">
+      <div className="max-w-6xl mx-auto">
 
         {/* HEADER */}
-        <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <header className="mb-12 border-b-2 border-foreground pb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div>
-            <Link href="/dashboard" className="inline-flex items-center text-gray-500 hover:text-gray-800 mb-2 transition-colors">
-              <ArrowLeft className="w-4 h-4 mr-1" /> Back to Dashboard
+            <Link href="/dashboard" className="inline-flex items-center text-muted-foreground hover:text-foreground mb-4 transition-colors font-sans text-xs uppercase tracking-widest">
+              <ArrowLeft className="w-3 h-3 mr-2" /> Return to History
             </Link>
-            <h1 className="text-3xl font-bold text-gray-900">Analysis Results</h1>
-            <p className="text-gray-600 text-sm">Session ID: {id}</p>
+            <h1 className="text-4xl md:text-5xl font-sans font-bold text-foreground mb-2">Analysis Report</h1>
+            <div className="flex gap-6 text-sm text-muted-foreground font-mono">
+              <span className="flex items-center gap-2"><FileText className="w-4 h-4" /> REF: {id}</span>
+              <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> {new Date().toLocaleDateString()}</span>
+              <span className="flex items-center gap-2"><User className="w-4 h-4" /> CANDIDATE_01</span>
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <button className="stone-button-secondary inline-flex items-center gap-2 text-xs">
+              <Share2 className="w-4 h-4" /> Share
+            </button>
+            <button className="stone-button inline-flex items-center gap-2 text-xs">
+              <Download className="w-4 h-4" /> Export PDF
+            </button>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
 
-          {/* LEFT COLUMN: Video Player */}
-          <div className="lg:col-span-1">
-            <div className="bg-black rounded-xl overflow-hidden shadow-lg sticky top-8">
-              <div className="aspect-video relative bg-gray-900 flex items-center justify-center">
-                <video
-                  controls
-                  className="w-full h-full object-contain"
-                  src={videoUrl}
-                >
+          {/* LEFT COLUMN: THE EVIDENCE (Video) */}
+          <div className="lg:col-span-5 space-y-8">
+            <div className="stacked-card p-2 bg-white">
+              <div className="aspect-video bg-gray-100 relative overflow-hidden">
+                <video controls className="w-full h-full object-cover" src={videoUrl}>
                   Your browser does not support the video tag.
                 </video>
               </div>
-              <div className="p-4 bg-white border-t border-gray-100">
-                <div className="flex items-center gap-2 text-gray-800 font-semibold">
-                  <PlayCircle className="w-5 h-5 text-blue-600" />
-                  <span>Session Replay</span>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Recorded on {new Date().toLocaleDateString()}
+              <div className="p-4 border-t border-border bg-gray-50/50">
+                <h3 className="text-xs font-sans font-bold uppercase tracking-widest text-muted-foreground mb-2">Transcript Excerpt</h3>
+                <p className="font-mono text-sm leading-relaxed text-foreground/80 italic">
+                  "{data.transcript ? data.transcript.substring(0, 150) : "Audio processed successfully. Initializing text extraction..."}..."
                 </p>
               </div>
             </div>
+
+            <div className="stacked-card p-6">
+              <h3 className="text-sm font-sans font-bold uppercase tracking-widest text-foreground mb-4 border-b border-border pb-2">AI Summary</h3>
+              <p className="font-body text-base leading-relaxed text-foreground/80">
+                {data.summary || "The candidate demonstrated strong structural coherence. However, vocal delivery lacked modulation in key stress periods."}
+              </p>
+            </div>
           </div>
 
-          {/* RIGHT COLUMN: Analytics Dashboard */}
-          <div className="lg:col-span-2 space-y-6">
+          {/* RIGHT COLUMN: THE DATA */}
+          <div className="lg:col-span-7 space-y-8">
 
-            {/* 1. Score Cards: Scaled from 0.0-1.0 to Percentage */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <ScoreCard title="Confidence" score={data.confidence_score} icon={<CheckCircle />} color="text-green-600" />
-              <ScoreCard title="Clarity" score={data.clarity_score} icon={<Brain />} color="text-blue-600" />
-              <ScoreCard title="Resilience" score={data.resilience_score} icon={<Activity />} color="text-purple-600" />
-              <ScoreCard title="Engagement" score={data.engagement_score} icon={<Zap />} color="text-yellow-600" />
+            {/* KEY METRICS GRID */}
+            <div className="grid grid-cols-2 gap-4">
+              <ReportMetric label="Confidence" value={data.confidence_score} status="optimal" />
+              <ReportMetric label="Clarity" value={data.clarity_score} status="optimal" />
+              <ReportMetric label="Resilience" value={data.resilience_score} status="warning" />
+              <ReportMetric label="Engagement" value={data.engagement_score} status="optimal" />
             </div>
 
-            {/* 2. Emotional Timeline Graph  */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-semibold mb-6 text-gray-800">Emotional Timeline</h3>
-              <div className="h-72 w-full">
+            {/* TIMELINE ANALYSIS */}
+            <div className="stacked-card p-6">
+              <div className="flex justify-between items-center mb-6 border-b border-border pb-2">
+                <h3 className="text-sm font-sans font-bold uppercase tracking-widest text-foreground">Emotional Amplitude</h3>
+                <div className="flex gap-4 text-xs font-mono">
+                  <span className="flex items-center gap-1"><div className="w-2 h-2 bg-foreground rounded-full"></div> Valence</span>
+                  <span className="flex items-center gap-1"><div className="w-2 h-2 bg-border rounded-full"></div> Arousal</span>
+                </div>
+              </div>
+
+              <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={data.timeline || []} margin={{ bottom: 20, left: -20, right: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                    <XAxis
-                      dataKey="timestamp"
-                      type="number"
-                      domain={[0, 'auto']}
-                      tickFormatter={formatXAxis}
-                      tick={{ fontSize: 11, fill: '#9ca3af' }}
-                      label={{ value: 'Time (s)', position: 'insideBottom', offset: -10, fontSize: 12, fill: '#6b7280' }}
-                    />
-                    <YAxis
-                      domain={[0, 100]}
-                      tick={{ fontSize: 11, fill: '#9ca3af' }}
-                      label={{ value: 'Intensity', angle: -90, position: 'insideLeft', offset: 10, fontSize: 12, fill: '#6b7280' }}
-                    />
+                  <LineChart data={data.timeline || []}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E7E5E4" />
+                    <XAxis dataKey="timestamp" hide />
+                    <YAxis hide domain={[0, 100]} />
                     <Tooltip
-                      labelFormatter={(val) => `Time: ${formatXAxis(val)}`}
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                      contentStyle={{ backgroundColor: '#FFF', border: '1px solid #E7E5E4', fontFamily: 'var(--font-ibm)' }}
+                      itemStyle={{ color: '#292524' }}
                     />
-                    <Legend verticalAlign="top" height={36} iconType="circle" />
-                    <Line
-                      type="monotone"
-                      dataKey="valence"
-                      stroke="#2563eb"
-                      name="Positivity"
-                      strokeWidth={3}
-                      dot={false}
-                      activeDot={{ r: 6 }}
-                      isAnimationActive={true}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="arousal"
-                      stroke="#dc2626"
-                      name="Energy"
-                      strokeWidth={3}
-                      dot={false}
-                      activeDot={{ r: 6 }}
-                      isAnimationActive={true}
-                    />
+                    <Line type="step" dataKey="valence" stroke="#292524" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                    <Line type="monotone" dataKey="arousal" stroke="#A8A29E" strokeWidth={2} strokeDasharray="5 5" dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            {/* 3. Coach Feedback Table/Card */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-semibold mb-4 text-gray-800">AI Coach Feedback</h3>
-              <div className="bg-blue-50/50 p-5 rounded-lg border border-blue-100">
-                <p className="text-gray-800 leading-relaxed italic">
-                  "{data.transcript || data.summary || "Analysis indicates a strong opening. To improve, try maintaining more consistent eye contact during the middle of your response."}"
-                </p>
-              </div>
+            {/* ACTION ITEMS */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-sans font-bold uppercase tracking-widest text-foreground border-b border-border pb-2">Coach feedback</h3>
+
+              <FeedbackItem type="positive" text="Maintained strong eye contact throughout the introduction phase." />
+              <FeedbackItem type="neutral" text="Pacing slowed significantly during complex technical explanations." />
+              <FeedbackItem type="negative" text="Detected multiple instances of vocal fry at sentence endings." />
             </div>
 
           </div>
@@ -201,26 +169,29 @@ export default function ResultPage() {
   );
 }
 
-/**
- * ScoreCard Component
- * Handles the visual representation of individual metrics.
- */
-function ScoreCard({ title, score, icon, color }: any) {
-  // Scaling real float values (e.g., 0.82) into UI percentages (82%)
-  const displayScore = Math.round((score || 0) * 100);
+function ReportMetric({ label, value, status }: { label: string, value: number, status: 'optimal' | 'warning' | 'critical' }) {
+  const percentage = Math.round((value || 0) * 100);
+  const colorClass = status === 'optimal' ? 'text-accent' : status === 'warning' ? 'text-orange-500' : 'text-destructive';
 
   return (
-    <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between h-full transition-all hover:shadow-md">
-      <div className="flex justify-between items-start mb-2">
-        <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">{title}</p>
-        <div className={`p-1.5 bg-gray-50 rounded-md ${color}`}>
-          {React.cloneElement(icon, { size: 16 })}
-        </div>
+    <div className="stacked-card p-6 flex flex-col gap-2">
+      <span className="text-xs font-sans font-bold uppercase tracking-widest text-muted-foreground">{label}</span>
+      <div className="flex items-baseline gap-2">
+        <span className="text-4xl font-mono font-medium text-foreground tracking-tighter">{percentage}%</span>
+        <span className={`text-xs font-bold uppercase ${colorClass}`}>{status}</span>
       </div>
-      <div className="flex items-baseline gap-1">
-        <p className="text-3xl font-bold text-gray-900">{displayScore}</p>
-        <span className="text-gray-400 text-sm font-medium">%</span>
-      </div>
+    </div>
+  );
+}
+
+function FeedbackItem({ type, text }: { type: 'positive' | 'negative' | 'neutral', text: string }) {
+  const Icon = type === 'positive' ? CheckCircle2 : type === 'negative' ? AlertOctagon : Minus;
+  const colorClass = type === 'positive' ? 'text-accent' : type === 'negative' ? 'text-destructive' : 'text-muted-foreground';
+
+  return (
+    <div className="flex gap-4 items-start p-4 bg-secondary/20 border border-border/50 rounded-sm">
+      <Icon className={`w-5 h-5 flex-shrink-0 ${colorClass}`} />
+      <p className="text-sm font-body text-foreground leading-relaxed">{text}</p>
     </div>
   );
 }

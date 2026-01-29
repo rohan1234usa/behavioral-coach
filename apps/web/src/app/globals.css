@@ -1,26 +1,156 @@
 @import "tailwindcss";
 
+@plugin "tailwindcss-animate";
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Warm Brutalism Palette */
+  --background: #F5F5F4;
+  /* Stone 100 - Limestone */
+  --foreground: #292524;
+  /* Stone 800 - Dark Text */
+
+  --primary: #292524;
+  /* Dark Stone - Primary Action */
+  --primary-foreground: #FFFFFF;
+
+  --secondary: #E7E5E4;
+  /* Stone 200 - Warm Gray */
+  --secondary-foreground: #292524;
+
+  --destructive: #B91C1C;
+  /* Deep Red */
+  --destructive-foreground: #FFFFFF;
+
+  --accent: #059669;
+  /* Mineral Green */
+  --accent-foreground: #FFFFFF;
+
+  --surface: #FFFFFF;
+  /* Pure White */
+  --surface-foreground: #292524;
+
+  --muted: #A8A29E;
+  /* Stone 400 */
+  --muted-foreground: #78716C;
+  /* Stone 500 */
+
+  --card: #FFFFFF;
+  --card-foreground: #292524;
+
+  --border: #D6D3D1;
+  /* Stone 300 */
+  --input: #E7E5E4;
+  --ring: #292524;
+
+  --radius: 2px;
+
+  /* Fonts */
+  --font-sans: var(--font-space);
+  --font-body: var(--font-ibm);
 }
 
-@theme inline {
+@theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-surface: var(--surface);
+  --color-surface-foreground: var(--surface-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-sans: var(--font-sans);
+  --font-body: var(--font-body);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Base Styles */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+
+/* Custom Utilities for Brutalist Aesthetic */
+
+@utility stacked-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 0 0 rgba(0, 0, 0, 0.05);
+}
+
+@utility heavy-border {
+  border: 2px solid var(--border);
+}
+
+@utility stone-button {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: var(--radius);
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: var(--font-sans);
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   }
 }
 
-body {
-  background: var(--background);
+@utility stone-button-secondary {
+  background-color: var(--surface);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  font-family: var(--font-body);
+
+  &:hover {
+    background-color: var(--secondary);
+  }
+}
+
+@utility grid-bg {
+  background-image: linear-gradient(to right, #E7E5E4 1px, transparent 1px),
+    linear-gradient(to bottom, #E7E5E4 1px, transparent 1px);
+  background-size: 20px 20px;
 }
