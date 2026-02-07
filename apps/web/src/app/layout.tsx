@@ -18,8 +18,25 @@ const ibmPlex = IBM_Plex_Sans({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://behavioral-interview-coach.vercel.app'),
   title: 'Behavioral Coach | Structure',
   description: 'Honest feedback. Structural analysis. Human metrics.',
+  openGraph: {
+    title: 'Behavioral Coach | Structure',
+    description: 'Honest feedback. Structural analysis. Human metrics.',
+    url: '/',
+    siteName: 'Behavioral Interview Coach',
+    images: [
+      {
+        url: '/bic-logo.jpg',
+        width: 3321,
+        height: 939,
+        alt: 'Behavioral Interview Coach Preview',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
 };
 
 export default function RootLayout({
