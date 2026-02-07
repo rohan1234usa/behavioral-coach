@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     siteName: 'Behavioral Interview Coach',
     images: [
       {
-        url: '/bic-logo.jpg',
+        url: '/bic-logo.jpg?v=2',
         width: 1200,
         height: 630,
         alt: 'Behavioral Interview Coach Preview',
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     description: 'Honest feedback. Structural analysis. Human metrics.',
     images: [
       {
-        url: '/bic-logo.jpg',
+        url: '/bic-logo.jpg?v=2',
         width: 1200,
         height: 630,
         alt: 'Behavioral Interview Coach Preview',
