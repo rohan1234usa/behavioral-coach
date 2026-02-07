@@ -1,5 +1,12 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+import os
+
+# FORCE LOCAL SQLITE for dev environment to avoid Docker "db" host error
+os.environ["DATABASE_URL"] = "sqlite:///./sql_app.db"
+load_dotenv()  # Ensure other env vars are loaded
+
 from app.api.endpoints import analysis, upload, sessions
 from app.db.base import Base, engine
 import boto3

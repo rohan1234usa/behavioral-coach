@@ -1,5 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Text, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
@@ -40,6 +39,6 @@ class AnalysisResult(Base):
     engagement_score = Column(Float, default=0.0) 
     
     # Full JSON blob for frontend charts
-    metrics_data = Column(JSONB)
+    metrics_data = Column(JSON)
     
     session = relationship("Session", back_populates="analysis")

@@ -24,6 +24,16 @@ export interface AnalysisData {
   };
 }
 
+export interface ConfidenceData {
+  score: number;
+  breakdown: {
+    potential: number;
+    momentum: number;
+    recent_sessions: number;
+  };
+  message: string;
+}
+
 export const api = {
   // 1. Get Presigned URL
   startSession: async (question: string): Promise<Session> => {
@@ -75,6 +85,12 @@ export const api = {
     const res = await axios.post(`${API_BASE}/questions/generate`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
+    return res.data;
+  },
+
+  // NEW: Get Confidence Score
+  getConfidenceScore: async (): Promise<ConfidenceData> => {
+    const res = await axios.get(`${API_BASE}/analysis/confidence`);
     return res.data;
   }
 };

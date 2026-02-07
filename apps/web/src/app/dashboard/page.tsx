@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/services/api';
+import ConfidenceGauge from '@/components/ConfidenceGauge';
 import { Square, ArrowUpRight, Grid, List } from 'lucide-react';
 import {
     ResponsiveContainer,
@@ -63,6 +64,11 @@ export default function Dashboard() {
                     </Link>
                 </div>
             </header>
+
+            {/* CONFIDENCE NORTH STAR */}
+            <div className="mb-16 animate-fade-in-up">
+                <ConfidenceGauge />
+            </div>
 
             {/* METRICS GRID: "CARD CATALOG" */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">

@@ -1,7 +1,15 @@
 # Behavioural Interview Coach 🎯
 
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Google Gemini](https://img.shields.io/badge/Google%20Gemini-8E75B2?style=for-the-badge&logo=google%20gemini&logoColor=white)](https://deepmind.google/technologies/gemini/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/Demo-Visit%20Live%20Site-2ea44f?style=for-the-badge&logo=vercel)](https://behavioral-interview-coach.vercel.app/)
+
 > **Version 1.0.0**
->
+
 > An AI-powered training platform that quantifies "Soft Skills" by analyzing facial micro-expressions, vocal prosody, and speech clarity during mock interviews.
 
   
@@ -54,7 +62,7 @@ The project utilizes a **Monorepo** structure with a "Hollow Core" dev strategy 
 ```text
 behavioural-coach/
 ├── apps/
-│   ├── web/                 # Frontend: Next.js 14 (App Router), Tailwind, Recharts
+│   ├── web/                 # Frontend: Next.js 16 (App Router), Tailwind, Recharts
 │   └── api/                 # Backend: FastAPI, SQLAlchemy, Pydantic
 ├── docker-compose.yml       # Orchestration (Postgres + API)
 └── .env                     # Configuration Secrets
@@ -96,8 +104,9 @@ AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_REGION=us-east-1
 S3_BUCKET_NAME=your-production-bucket
 
-# --- AI Integrations (Optional for Dev) ---
+# --- AI Integrations ---
 IMENTIV_API_KEY=your_imentiv_key
+GEMINI_API_KEY=your_gemini_key
 OPENAI_API_KEY=your_openai_key
 ```
 

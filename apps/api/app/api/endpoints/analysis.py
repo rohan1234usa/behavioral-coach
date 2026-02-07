@@ -113,7 +113,17 @@ def run_real_pipeline(session_id: int):
         if os.path.exists(temp_file):
             os.remove(temp_file)
 
+from app.services.stats import StatsService
+
 # --- ENDPOINTS ---
+
+@router.get("/confidence")
+def get_confidence_score(db: Session = Depends(get_db)):
+    """
+    Returns the user's current 'Confidence & Momentum' score.
+    """
+    return StatsService.calculate_confidence_score(db)
+
 
 @router.post("/{session_id}/trigger")
 async def trigger_analysis(session_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):

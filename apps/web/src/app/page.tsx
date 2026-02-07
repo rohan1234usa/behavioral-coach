@@ -14,8 +14,8 @@ export default function LandingPage() {
           </div>
 
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-sans font-bold uppercase tracking-tighter leading-[0.9] mb-12 text-foreground">
-            The Blueprint <br />
-            <span className="text-muted-foreground">of You</span>
+            Ace the <br />
+            <span className="text-muted-foreground">Behavioral Interview</span>
           </h1>
 
           <p className="max-w-2xl text-xl md:text-2xl leading-relaxed text-foreground/80 font-medium mb-12 border-l-4 border-accent pl-6">
