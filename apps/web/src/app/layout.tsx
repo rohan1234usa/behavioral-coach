@@ -29,13 +29,27 @@ export const metadata: Metadata = {
     images: [
       {
         url: '/bic-logo.jpg',
-        width: 3321,
-        height: 939,
+        width: 1200,
+        height: 630,
         alt: 'Behavioral Interview Coach Preview',
+        type: 'image/jpeg',
       },
     ],
     locale: 'en_US',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Behavioral Coach | Structure',
+    description: 'Honest feedback. Structural analysis. Human metrics.',
+    images: [
+      {
+        url: '/bic-logo.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Behavioral Interview Coach Preview',
+      },
+    ],
   },
 };
 
