@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Space_Grotesk, IBM_Plex_Sans } from 'next/font/google';
 import Link from 'next/link';
 import { Square } from 'lucide-react';
+import { GoogleAnalytics } from '@next/third-parties/google';
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -78,6 +79,7 @@ export default function RootLayout({
               <div className="hidden md:flex gap-8 text-sm font-medium text-muted-foreground uppercase tracking-wider">
                 <Link href="/dashboard" className="hover:text-foreground transition-colors">History</Link>
                 <Link href="/arena" className="hover:text-foreground transition-colors">Practice</Link>
+                <Link href="/about" className="hover:text-foreground transition-colors">About</Link>
                 <Link href="/settings" className="hover:text-foreground transition-colors">Settings</Link>
               </div>
             </div>
@@ -110,6 +112,7 @@ export default function RootLayout({
 
         </div>
       </body>
+      <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID || ''} />
     </html>
   );
 }

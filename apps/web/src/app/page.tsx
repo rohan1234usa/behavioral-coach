@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowUpRight, Scale, Brain, Crosshair } from 'lucide-react';
 
+
 export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground font-body">
@@ -64,6 +65,9 @@ export default function LandingPage() {
         />
 
       </section>
+
+
+
 
       {/* FOOTER CALL */}
       <section className="py-24 px-6 text-center bg-foreground text-background">
