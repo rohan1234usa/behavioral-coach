@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSession, signIn } from 'next-auth/react';
 import { api } from '@/services/api';
 import ConfidenceGauge from '@/components/ConfidenceGauge';
-import { Square, ArrowUpRight, Grid, List } from 'lucide-react';
+import { Square, ArrowUpRight, Grid, List, Lock } from 'lucide-react';
 import {
     ResponsiveContainer,
     ScatterChart,
@@ -29,20 +30,45 @@ const generateDotData = (count: number) => {
 const mockData = generateDotData(20);
 
 export default function Dashboard() {
+    const { data: session, status } = useSession();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [sessions, setSessions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        api.getSessions()
-            .then(data => setSessions(data))
-            .catch(err => console.error(err))
-            .finally(() => setLoading(false));
-    }, []);
+        if (status === 'authenticated') {
+            api.getSessions()
+                .then(data => setSessions(data))
+                .catch(err => console.error(err))
+                .finally(() => setLoading(false));
+        } else if (status === 'unauthenticated') {
+            setLoading(false);
+        }
+    }, [status]);
 
-    if (loading) return (
+    if (status === 'loading' || (status === 'authenticated' && loading)) return (
         <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground font-sans uppercase tracking-[0.2em] text-xs">
             Retrieving Archive...
+        </div>
+    );
+
+    if (status === 'unauthenticated') return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-6">
+            <div className="max-w-md text-center flex flex-col items-center gap-6">
+                <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mb-4">
+                    <Lock className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <h1 className="text-3xl font-sans font-bold">Authentication Required</h1>
+                <p className="text-muted-foreground">
+                    Your performance history is secured. Sign in to access your interview archives and analysis data.
+                </p>
+                <button
+                    onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+                    className="px-8 py-3 bg-primary text-background font-bold uppercase tracking-widest hover:opacity-90 transition-opacity"
+                >
+                    Sign In to Access
+                </button>
+            </div>
         </div>
     );
 

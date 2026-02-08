@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Square, Volume2, VolumeX } from 'lucide-react';
+import { useSession, signIn } from 'next-auth/react';
+import { Loader2, Square, Volume2, VolumeX, LogIn } from 'lucide-react';
 import { api } from '@/services/api';
 import { useSpeechSynthesis, useAutoSpeak } from '@/hooks/useSpeechSynthesis';
 
@@ -138,6 +139,7 @@ export default function ArenaRecorder({ initialQuestion = "Describe a difficult 
 
   // Speech synthesis integration
   const { speak, stop, isSpeaking, isSupported } = useSpeechSynthesis();
+  const { data: session } = useSession();
 
   // Auto-speak the question when component mounts (if enabled in settings)
   useAutoSpeak(initialQuestion, true);
@@ -151,11 +153,21 @@ export default function ArenaRecorder({ initialQuestion = "Describe a difficult 
   }, []);
 
   const handleUploadFlow = async (blobUrl: string, blob: Blob) => {
+    if (!session) {
+      const confirmSignIn = window.confirm("You must be signed in to save and analyze your performance.\n\nSign in now?");
+      if (confirmSignIn) {
+        signIn("google", { callbackUrl: "/arena" });
+      }
+      // Reload to reset the recorder state if they cancel, or just let them lose the video?
+      // Ideally we'd save it locally or something, but for now blocking is the request.
+      return;
+    }
+
     try {
-      const session = await api.startSession(initialQuestion);
-      await api.uploadVideo(session.session_id, blob);
-      await api.triggerAnalysis(session.session_id);
-      router.push(`/results/${session.session_id}`);
+      const sessionData = await api.startSession(initialQuestion);
+      await api.uploadVideo(sessionData.session_id, blob);
+      await api.triggerAnalysis(sessionData.session_id);
+      router.push(`/results/${sessionData.session_id}`);
     } catch (err) {
       console.error("❌ ERROR:", err);
       // alert("Analysis failed. Check backend logs.");
