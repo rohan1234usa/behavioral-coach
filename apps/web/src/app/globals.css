@@ -49,6 +49,52 @@
   --font-body: var(--font-ibm);
 }
 
+/* Dark Mode - Warm Brutalism */
+.dark {
+  --background: #1C1917;
+  /* Stone 900 - Deep charcoal with warmth */
+  --foreground: #F5F5F4;
+  /* Stone 100 - Soft white text */
+
+  --primary: #E7E5E4;
+  /* Light Stone - Primary actions stand out */
+  --primary-foreground: #1C1917;
+  /* Dark text on light buttons */
+
+  --secondary: #292524;
+  /* Stone 800 - Darker secondary */
+  --secondary-foreground: #F5F5F4;
+  /* Light text */
+
+  --destructive: #EF4444;
+  /* Softer red for dark mode (less harsh) */
+  --destructive-foreground: #FAFAF9;
+
+  --accent: #10B981;
+  /* Brighter emerald green (more visible) */
+  --accent-foreground: #1C1917;
+
+  --surface: #292524;
+  /* Stone 800 - Elevated surfaces */
+  --surface-foreground: #F5F5F4;
+
+  --muted: #57534E;
+  /* Stone 600 - Muted elements */
+  --muted-foreground: #A8A29E;
+  /* Stone 400 - Muted text */
+
+  --card: #292524;
+  /* Stone 800 - Card backgrounds */
+  --card-foreground: #F5F5F4;
+
+  --border: #44403C;
+  /* Stone 700 - Subtle borders */
+  --input: #292524;
+  /* Stone 800 - Input backgrounds */
+  --ring: #E7E5E4;
+  /* Light ring for focus states */
+}
+
 @theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -150,7 +196,7 @@ h6 {
 }
 
 @utility grid-bg {
-  background-image: linear-gradient(to right, #E7E5E4 1px, transparent 1px),
-    linear-gradient(to bottom, #E7E5E4 1px, transparent 1px);
+  background-image: linear-gradient(to right, var(--border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
   background-size: 20px 20px;
 }

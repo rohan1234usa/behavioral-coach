@@ -10,7 +10,7 @@ export default function LandingPage() {
       <section className="relative px-6 py-24 md:py-32 lg:px-12 border-b-2 border-border grid-bg">
         <div className="max-w-7xl mx-auto">
 
-          <div className="inline-block border-2 border-primary px-4 py-1 mb-8 bg-white shadow-[4px_4px_0_0_rgba(41,37,36,1)]">
+          <div className="inline-block border-2 border-primary px-4 py-1 mb-8 bg-surface shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
             <span className="font-sans font-bold uppercase tracking-widest text-xs">Behavioral Architecture v2.0</span>
           </div>
 
@@ -34,7 +34,7 @@ export default function LandingPage() {
 
             <Link
               href="/dashboard"
-              className="stone-button-secondary inline-flex items-center justify-center gap-3 text-lg bg-white"
+              className="stone-button-secondary inline-flex items-center justify-center gap-3 text-lg"
             >
               View History
             </Link>
@@ -76,7 +76,7 @@ export default function LandingPage() {
         </h2>
         <Link
           href="/arena"
-          className="inline-block bg-background text-foreground px-8 py-4 font-sans font-bold uppercase tracking-widest text-lg hover:bg-white transition-colors"
+          className="inline-block bg-background text-foreground px-8 py-4 font-sans font-bold uppercase tracking-widest text-lg hover:bg-surface transition-colors"
         >
           Begin Calibration
         </Link>
@@ -88,7 +88,7 @@ export default function LandingPage() {
 
 function FeatureColumn({ icon, title, desc }: { icon: any, title: string, desc: string }) {
   return (
-    <div className="p-12 hover:bg-white transition-colors group">
+    <div className="p-12 hover:bg-surface transition-colors group">
       <div className="mb-6 text-foreground group-hover:text-accent transition-colors">{icon}</div>
       <h3 className="text-2xl font-sans font-bold uppercase tracking-tight mb-4">{title}</h3>
       <p className="text-lg text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors">

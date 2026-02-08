@@ -93,13 +93,13 @@ export default function ResultPage() {
 
           {/* LEFT COLUMN: THE EVIDENCE (Video) */}
           <div className="lg:col-span-5 space-y-8">
-            <div className="stacked-card p-2 bg-white">
-              <div className="aspect-video bg-gray-100 relative overflow-hidden">
+            <div className="stacked-card p-2">
+              <div className="aspect-video bg-muted/20 relative overflow-hidden">
                 <video controls className="w-full h-full object-cover" src={videoUrl}>
                   Your browser does not support the video tag.
                 </video>
               </div>
-              <div className="p-4 border-t border-border bg-gray-50/50">
+              <div className="p-4 border-t border-border bg-secondary/20">
                 <h3 className="text-xs font-sans font-bold uppercase tracking-widest text-muted-foreground mb-2">Transcript Excerpt</h3>
                 <p className="font-mono text-sm leading-relaxed text-foreground/80 italic">
                   "{data.transcript ? data.transcript.substring(0, 150) : "Audio processed successfully. Initializing text extraction..."}..."
@@ -139,15 +139,15 @@ export default function ResultPage() {
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={data.timeline || []}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E7E5E4" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
                     <XAxis dataKey="timestamp" hide />
                     <YAxis hide domain={[0, 100]} />
                     <Tooltip
-                      contentStyle={{ backgroundColor: '#FFF', border: '1px solid #E7E5E4', fontFamily: 'var(--font-ibm)' }}
-                      itemStyle={{ color: '#292524' }}
+                      contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', fontFamily: 'var(--font-ibm)' }}
+                      itemStyle={{ color: 'var(--foreground)' }}
                     />
-                    <Line type="step" dataKey="valence" stroke="#292524" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                    <Line type="monotone" dataKey="arousal" stroke="#A8A29E" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                    <Line type="step" dataKey="valence" className="stroke-foreground" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                    <Line type="monotone" dataKey="arousal" className="stroke-muted" strokeWidth={2} strokeDasharray="5 5" dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>

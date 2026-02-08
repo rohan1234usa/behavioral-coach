@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { api } from '@/services/api';
-import { Loader2, Briefcase, FileText, Sparkles, Pencil } from 'lucide-react';
+import { Loader2, Briefcase, FileText, Sparkles, Pencil, Volume2, VolumeX } from 'lucide-react';
+import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 
 interface QuestionSetupProps {
     onQuestionSelected: (question: string) => void;
@@ -19,6 +20,31 @@ export default function QuestionSetup({ onQuestionSelected }: QuestionSetupProps
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedQuestions, setGeneratedQuestions] = useState<string[]>([]);
     const [selectedAiQuestion, setSelectedAiQuestion] = useState<string | null>(null);
+
+    // Speech synthesis for question preview
+    const { speak, stop, isSpeaking, isSupported } = useSpeechSynthesis();
+    const [speakingQuestionIndex, setSpeakingQuestionIndex] = useState<number | null>(null);
+
+    // Handle voice preview for a question
+    const handleVoicePreview = (question: string, index: number, e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent question selection when clicking voice button
+
+        if (isSpeaking && speakingQuestionIndex === index) {
+            stop();
+            setSpeakingQuestionIndex(null);
+        } else {
+            stop(); // Stop any current speech
+            speak(question);
+            setSpeakingQuestionIndex(index);
+        }
+    };
+
+    // Reset speaking state when speech ends
+    React.useEffect(() => {
+        if (!isSpeaking) {
+            setSpeakingQuestionIndex(null);
+        }
+    }, [isSpeaking]);
 
     const handleGenerate = async () => {
         if (!company || !role) {
@@ -120,12 +146,12 @@ export default function QuestionSetup({ onQuestionSelected }: QuestionSetupProps
                                 type="file"
                                 accept=".pdf"
                                 onChange={(e) => setResume(e.target.files?.[0] || null)}
-                                className="block w-full text-sm text-slate-500
+                                className="block w-full text-sm text-muted-foreground
                   file:mr-4 file:py-2 file:px-4
                   file:border-2 file:border-border
                   file:text-sm file:font-semibold
-                  file:bg-violet-50 file:text-foreground
-                  hover:file:bg-violet-100 cursor-pointer"
+                  file:bg-secondary file:text-foreground
+                  hover:file:bg-secondary/70 cursor-pointer"
                             />
                         </div>
 
@@ -134,7 +160,7 @@ export default function QuestionSetup({ onQuestionSelected }: QuestionSetupProps
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
-                                className="w-full bg-stone-200 border-2 border-border py-3 font-bold uppercase tracking-widest hover:bg-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                className="w-full bg-secondary border-2 border-border py-3 text-foreground font-bold uppercase tracking-widest hover:bg-secondary/70 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                             >
                                 {isGenerating ? <Loader2 className="animate-spin w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
                                 {isGenerating ? 'Analyzing Context...' : 'Generate Questions'}
@@ -144,15 +170,40 @@ export default function QuestionSetup({ onQuestionSelected }: QuestionSetupProps
                         {/* RESULTS */}
                         {generatedQuestions.length > 0 && (
                             <div className="mt-4 animate-fade-in">
-                                <h3 className="text-sm font-bold uppercase tracking-wide mb-4 text-accent">Select a Question</h3>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-sm font-bold uppercase tracking-wide text-accent">Select a Question</h3>
+                                    {isSupported && (
+                                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                                            <Volume2 className="w-3 h-3" /> Click speaker to preview
+                                        </span>
+                                    )}
+                                </div>
                                 <div className="flex flex-col gap-3">
                                     {generatedQuestions.map((q, i) => (
                                         <div
                                             key={i}
                                             onClick={() => setSelectedAiQuestion(q)}
-                                            className={`p-4 border-2 cursor-pointer transition-all ${selectedAiQuestion === q ? 'border-accent bg-accent/5' : 'border-border hover:border-gray-400'}`}
+                                            className={`p-4 border-2 cursor-pointer transition-all flex items-start gap-3 ${selectedAiQuestion === q ? 'border-accent bg-accent/5' : 'border-border hover:border-muted-foreground'}`}
                                         >
-                                            <p className="font-medium">{q}</p>
+                                            <p className="font-medium flex-1">{q}</p>
+
+                                            {/* Voice Preview Button */}
+                                            {isSupported && (
+                                                <button
+                                                    onClick={(e) => handleVoicePreview(q, i, e)}
+                                                    className={`flex-shrink-0 w-8 h-8 rounded-sm border flex items-center justify-center transition-all ${speakingQuestionIndex === i
+                                                        ? 'border-accent bg-accent/20 text-accent'
+                                                        : 'border-border hover:border-primary hover:bg-secondary/50 text-muted-foreground hover:text-foreground'
+                                                        }`}
+                                                    title={speakingQuestionIndex === i ? "Stop" : "Preview question"}
+                                                >
+                                                    {speakingQuestionIndex === i ? (
+                                                        <VolumeX className="w-4 h-4" />
+                                                    ) : (
+                                                        <Volume2 className="w-4 h-4" />
+                                                    )}
+                                                </button>
+                                            )}
                                         </div>
                                     ))}
                                 </div>

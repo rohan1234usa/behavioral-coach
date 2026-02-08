@@ -34,7 +34,7 @@ export default function ConfidenceGauge() {
     ];
 
     return (
-        <div className="bg-gray-800/50 backdrop-blur-md border border-gray-700 rounded-2xl p-6 relative overflow-hidden">
+        <div className="bg-card/50 backdrop-blur-md border border-border rounded-2xl p-6 relative overflow-hidden">
             {/* Background Glow */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10" />
 
@@ -63,15 +63,15 @@ export default function ConfidenceGauge() {
 
                     {/* Center Score */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center pb-4">
-                        <span className="text-4xl font-bold text-white">{data.score}</span>
-                        <span className="text-xs text-gray-400 uppercase tracking-widest">Score</span>
+                        <span className="text-4xl font-bold text-foreground">{data.score}</span>
+                        <span className="text-xs text-muted-foreground uppercase tracking-widest">Score</span>
                     </div>
                 </div>
 
                 {/* The Details */}
                 <div className="flex-1 space-y-6">
                     <div>
-                        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                        <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
                             Are you ready?
                         </h2>
                         <p className="text-emerald-400 font-medium mt-1">
@@ -80,22 +80,22 @@ export default function ConfidenceGauge() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-800">
-                            <div className="flex items-center gap-2 text-gray-400 mb-2">
+                        <div className="bg-muted/20 p-4 rounded-xl border border-border">
+                            <div className="flex items-center gap-2 text-muted-foreground mb-2">
                                 <Trophy className="w-4 h-4 text-emerald-500" />
                                 <span className="text-sm">Potential</span>
                             </div>
-                            <div className="text-2xl font-bold text-white">{data.breakdown.potential}<span className="text-sm text-gray-500">/100</span></div>
-                            <div className="text-xs text-gray-500 mt-1">Top 3 Avg</div>
+                            <div className="text-2xl font-bold text-foreground">{data.breakdown.potential}<span className="text-sm text-muted-foreground">/100</span></div>
+                            <div className="text-xs text-muted-foreground mt-1">Top 3 Avg</div>
                         </div>
 
-                        <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-800">
-                            <div className="flex items-center gap-2 text-gray-400 mb-2">
+                        <div className="bg-muted/20 p-4 rounded-xl border border-border">
+                            <div className="flex items-center gap-2 text-muted-foreground mb-2">
                                 <Zap className="w-4 h-4 text-amber-500" />
                                 <span className="text-sm">Momentum</span>
                             </div>
-                            <div className="text-2xl font-bold text-white">{data.breakdown.recent_sessions}<span className="text-sm text-gray-500">/3</span></div>
-                            <div className="text-xs text-gray-500 mt-1">Sessions this week</div>
+                            <div className="text-2xl font-bold text-foreground">{data.breakdown.recent_sessions}<span className="text-sm text-muted-foreground">/3</span></div>
+                            <div className="text-xs text-muted-foreground mt-1">Sessions this week</div>
                         </div>
                     </div>
                 </div>

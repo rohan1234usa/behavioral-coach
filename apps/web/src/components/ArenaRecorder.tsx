@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Square, Circle, Mic } from 'lucide-react';
+import { Loader2, Square, Volume2, VolumeX } from 'lucide-react';
 import { api } from '@/services/api';
+import { useSpeechSynthesis, useAutoSpeak } from '@/hooks/useSpeechSynthesis';
 
 /**
  * SUB-COMPONENT: InternalRecorder
@@ -57,7 +58,7 @@ function InternalRecorder({ useRecorder, onUpload }: { useRecorder: any, onUploa
       {/* THE OBJECT: 1:1 MONITOR */}
       <div className="relative group">
         {/* BEZEL */}
-        <div className="w-[80vw] max-w-[600px] aspect-square bg-gray-100 border-[3px] border-border shadow-[0_20px_40px_-10px_rgba(0,0,0,0.1)] p-1 transition-all duration-500">
+        <div className="w-[80vw] max-w-[600px] aspect-square bg-muted/30 border-[3px] border-border shadow-[0_20px_40px_-10px_rgba(0,0,0,0.1)] p-1 transition-all duration-500">
 
           {/* SCREEN */}
           <div className="w-full h-full bg-black relative overflow-hidden grayscale">
@@ -94,7 +95,7 @@ function InternalRecorder({ useRecorder, onUpload }: { useRecorder: any, onUploa
             className="group relative flex flex-col items-center gap-4 focus:outline-none"
           >
             {/* LARGE CLICKY BUTTON */}
-            <div className="w-20 h-20 rounded-full bg-white border-2 border-border shadow-[0_5px_0_rgba(200,200,200,1)] hover:translate-y-[2px] hover:shadow-[0_3px_0_rgba(200,200,200,1)] active:translate-y-[5px] active:shadow-none transition-all flex items-center justify-center">
+            <div className="w-20 h-20 rounded-full bg-surface border-2 border-border shadow-[0_5px_0_rgba(200,200,200,1)] hover:translate-y-[2px] hover:shadow-[0_3px_0_rgba(200,200,200,1)] active:translate-y-[5px] active:shadow-none transition-all flex items-center justify-center">
               <div className="w-8 h-8 bg-red-600 rounded-full group-hover:scale-110 transition-transform"></div>
             </div>
             <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors font-sans">REC</span>
@@ -105,7 +106,7 @@ function InternalRecorder({ useRecorder, onUpload }: { useRecorder: any, onUploa
             className="group relative flex flex-col items-center gap-4 focus:outline-none"
           >
             {/* LARGE STOP BUTTON */}
-            <div className="w-20 h-20 rounded-full bg-white border-2 border-border shadow-[0_5px_0_rgba(200,200,200,1)] hover:translate-y-[2px] hover:shadow-[0_3px_0_rgba(200,200,200,1)] active:translate-y-[5px] active:shadow-none transition-all flex items-center justify-center">
+            <div className="w-20 h-20 rounded-full bg-surface border-2 border-border shadow-[0_5px_0_rgba(200,200,200,1)] hover:translate-y-[2px] hover:shadow-[0_3px_0_rgba(200,200,200,1)] active:translate-y-[5px] active:shadow-none transition-all flex items-center justify-center">
               <div className="w-8 h-8 bg-foreground rounded-sm"></div>
             </div>
             <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors font-sans">STOP</span>
@@ -135,6 +136,12 @@ export default function ArenaRecorder({ initialQuestion = "Describe a difficult 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [recorderHook, setRecorderHook] = useState<any>(null);
 
+  // Speech synthesis integration
+  const { speak, stop, isSpeaking, isSupported } = useSpeechSynthesis();
+
+  // Auto-speak the question when component mounts (if enabled in settings)
+  useAutoSpeak(initialQuestion, true);
+
   useEffect(() => {
     const loadRecorder = async () => {
       const mod = await import('react-media-recorder-2');
@@ -156,14 +163,43 @@ export default function ArenaRecorder({ initialQuestion = "Describe a difficult 
     }
   };
 
+  // Handle voice button click
+  const handleVoiceClick = () => {
+    if (isSpeaking) {
+      stop();
+    } else {
+      speak(initialQuestion);
+    }
+  };
+
   return (
     <div className="flex flex-col items-center w-full min-h-screen bg-background text-foreground">
 
-      {/* HEADER: SIMPLE TYPEWRITER */}
-      <div className="w-full border-b border-border py-6 flex justify-center bg-surface sticky top-0 z-40">
-        <h1 className="text-lg font-sans font-bold text-foreground tracking-tight max-w-2xl text-center px-4">
-          Module 01: <span className="text-muted-foreground font-normal">{initialQuestion}</span>
-        </h1>
+      {/* HEADER: QUESTION WITH VOICE BUTTON */}
+      <div className="w-full border-b border-border py-6 bg-surface sticky top-0 z-40">
+        <div className="max-w-2xl mx-auto px-4 flex items-center justify-center gap-4">
+          <h1 className="text-lg font-sans font-bold text-foreground tracking-tight text-center flex-1">
+            Module 01: <span className="text-muted-foreground font-normal">{initialQuestion}</span>
+          </h1>
+
+          {/* Voice Control Button */}
+          {isSupported && (
+            <button
+              onClick={handleVoiceClick}
+              className={`flex-shrink-0 w-10 h-10 rounded-sm border-2 flex items-center justify-center transition-all ${isSpeaking
+                ? 'border-accent bg-accent/10 text-accent'
+                : 'border-border hover:border-primary hover:bg-secondary text-muted-foreground hover:text-foreground'
+                }`}
+              title={isSpeaking ? "Stop reading" : "Read question aloud"}
+            >
+              {isSpeaking ? (
+                <VolumeX className="w-5 h-5" />
+              ) : (
+                <Volume2 className="w-5 h-5" />
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
       {recorderHook ? (
