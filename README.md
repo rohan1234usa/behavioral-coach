@@ -4,6 +4,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Google Gemini](https://img.shields.io/badge/Google%20Gemini-8E75B2?style=for-the-badge&logo=google%20gemini&logoColor=white)](https://deepmind.google/technologies/gemini/)
+[![Imentiv AI](https://img.shields.io/badge/Imentiv%20AI-FF6B6B?style=for-the-badge&logo=ai&logoColor=white)](https://imentiv.ai/)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 [![Live Demo](https://img.shields.io/badge/Demo-Visit%20Live%20Site-2ea44f?style=for-the-badge&logo=vercel)](https://behavioral-interview-coach.vercel.app/)
@@ -36,7 +37,7 @@ A distraction-free, virtual interview environment.
 
 The core engine aggregates data from two distinct streams:
 
-  * **Facial Analysis:** Tracks Valence, Arousal, and specific Action Units (AUs) to detect stress spikes or lack of engagement.
+  * **Facial Analysis (Powered by [Imentiv AI](https://imentiv.ai/)):** Leverages Imentiv AI's Video Emotion Recognition API to track Valence, Arousal, and specific Action Units (AUs) to detect stress spikes or lack of engagement.
   * **Vocal Prosody:** Analyzes pitch jitter, volume consistency, and words-per-minute (WPM) to score vocal stability.
 
 ### 3\. The "Soft Skill" Dashboard
@@ -74,7 +75,7 @@ behavioural-coach/
 2.  **API:** Returns an AWS S3 Presigned URL.
 3.  **Client:** Uploads video binary directly to S3.
 4.  **Client:** Triggers the Analysis Pipeline via Webhook.
-5.  **Worker:** Backend processes the video (via Imentiv/OpenAI), calculates metrics, and stores results in PostgreSQL.
+5.  **Worker:** Backend processes the video using Imentiv AI's Video Emotion Recognition API for facial analysis and additional AI services for vocal analysis, calculates metrics, and stores results in PostgreSQL.
 6.  **Client:** Polls for completion and renders the Dashboard.
 
 -----
