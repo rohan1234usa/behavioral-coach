@@ -9,8 +9,7 @@ import json
 import logging
 import time
 
-# Setup Logger (Replacing with print for Docker visibility)
-# logger = logging.getLogger("AnalysisPipeline")
+# Restore standard logging/print for Docker
 router = APIRouter()
 
 s3_internal = boto3.client('s3',
@@ -50,7 +49,6 @@ def run_real_pipeline(session_id: int):
         print(f"📤 Uploaded to Imentiv. Video ID: {video_id}", flush=True)
 
         # 3. Wait slightly for backend to register file
-        import time
         time.sleep(5)
 
         # 4. Wait for analysis to complete, then fetch full results
@@ -66,8 +64,6 @@ def run_real_pipeline(session_id: int):
         #    Extract metrics defensively — default to 0.0 if missing
         
         # -- Overall Scores --
-        # The multimodal-analytics response may have these at the top level
-        # or nested under different keys depending on the video content
         confidence = float(results.get("confidence_score", 0.0))
         clarity = float(results.get("clarity_score", 0.0))
         resilience = float(results.get("resilience_score", 0.0))
@@ -82,7 +78,6 @@ def run_real_pipeline(session_id: int):
         transcript = results.get("summary", "") or results.get("transcript", "")
         
         # -- Emotion Timeline --
-        # Build a timeline from frames or video_emotions data
         frames = (
             results.get("frames") or 
             results.get("video_emotions") or 
@@ -111,32 +106,60 @@ def run_real_pipeline(session_id: int):
                 })
         
         # -- Aggregate emotion scores if top-level scores are 0 --
-        # NOTE: Audio and Text analysis endpoints (v2/audios/{id}, v2/texts/{id}) currently return 
-        # 422 Unprocessable Entity from the Imentiv API, so we cannot merge those emotions yet.
-        # Focusing on video emotions for now.
         if confidence == 0.0 and clarity == 0.0:
-            # Try to get emotions from 'emotion_analysis.overall.video' (New SDK structure)
-            # Fallback to 'video_emotions' or 'emotions' for older versions/endpoints
-            emotions = (
-                results.get("emotion_analysis", {}).get("overall", {}).get("video") or
-                results.get("video_emotions") or 
-                results.get("emotions", {})
-            )
+            # -- MULTIMODAL FUSION --
+            overall = results.get("emotion_analysis", {}).get("overall", {})
+            
+            video_em = overall.get("video") or results.get("video_emotions") or results.get("emotions", {})
+            audio_em = overall.get("audio") or {}
+            text_em = overall.get("text") or {}
+            
+            # Helper to safely get float
+            def get_em(source, key):
+                return float(source.get(key) or source.get(key.replace("anger", "angry")) or 0.0)
+
+            # List of emotions to merge
+            emotion_keys = ["happy", "joy", "sad", "sadness", "anger", "angry", "fear", "disgust", "surprise", "neutral", "contempt"]
+            
+            merged_emotions = {}
+            for key in emotion_keys:
+                # Normalize key names
+                norm_key = key
+                if key == "happy": norm_key = "joy"
+                if key == "sad": norm_key = "sadness"
+                if key == "angry": norm_key = "anger"
+                
+                # Sum present values
+                total = 0.0
+                count = 0
+                
+                if video_em: 
+                    val = get_em(video_em, key)
+                    if val > 0: 
+                        total += val
+                        count += 1
+                
+                if audio_em:
+                    val = get_em(audio_em, key)
+                    if val > 0:
+                        total += val
+                        count += 1
+                        
+                if text_em:
+                    val = get_em(text_em, key)
+                    if val > 0:
+                        total += val
+                        count += 1
+                
+                # Average
+                if count > 0:
+                    merged_emotions[norm_key] = merged_emotions.get(norm_key, 0.0) + (total / count)
+            
+            # Use merged emotions for scoring
+            emotions = merged_emotions if merged_emotions else (video_em if isinstance(video_em, dict) else {})
             
             if isinstance(emotions, dict):
-                # Normalize raw values if they are 0-1 (which they seem to be based on logs)
-                # Parse standard Ekman emotions
-                joy = float(emotions.get("happy") or emotions.get("joy") or 0.0)
-                sadness = float(emotions.get("sad") or emotions.get("sadness") or 0.0)
-                anger = float(emotions.get("anger") or 0.0)
-                fear = float(emotions.get("fear") or 0.0)
-                disgust = float(emotions.get("disgust") or 0.0)
-                surprise = float(emotions.get("surprise") or 0.0)
-                neutral = float(emotions.get("neutral") or 0.0)
-
-                # Heuristic Mapping
-                
-                # Parse standard Ekman emotions with robust key handling
+                # Normalize raw values
                 joy = float(emotions.get("happy") or emotions.get("joy") or 0.0)
                 sadness = float(emotions.get("sad") or emotions.get("sadness") or 0.0)
                 anger = float(emotions.get("anger") or emotions.get("angry") or 0.0)
@@ -147,22 +170,9 @@ def run_real_pipeline(session_id: int):
                 contempt = float(emotions.get("contempt") or 0.0)
 
                 # --- SCIENTIFIC METRIC FORMULAS ---
-                
-                # Confidence: Composure (Neutral) + Optimism (Joy) - Anxiety/Defeat (Fear/Sadness/Anger)
-                # A confident speaker is calm and positive, not fearful or angry.
                 confidence = (neutral + joy) - (fear + sadness + anger)
-                
-                # Clarity: Calmness (Neutral) - Confusion (Surprise) - Aggression (Anger) - Anxiety (Fear)
-                # Clarity requires a steady, controlled baseline.
                 clarity = neutral - (surprise + anger + fear)
-                
-                # Engagement: Expressiveness (Joy + Surprise) + Passion (Anger) vs Monotone (Neutral)
-                # Engagement is about energy and variation. Purely neutral is "boring".
-                # We reward high energy emotions and penalize excessive neutrality.
                 engagement = (joy + surprise + 0.1 * anger) + (1.0 - neutral) * 0.5
-                
-                # Resilience: Stability under pressure
-                # The ability to NOT show negative breakdown emotions (Fear, Sadness, Disgust, Contempt)
                 resilience = 1.0 - (fear + sadness + disgust + contempt)
 
                 # Clamp all scores to 0.0 - 1.0 range
@@ -177,16 +187,12 @@ def run_real_pipeline(session_id: int):
                 
                 print(f"📐 Derived scores: conf={confidence:.1f} clar={clarity:.1f} eng={engagement:.1f} res={resilience:.1f} dom={dominant_emotion}", flush=True)
 
-        # Normalize scores to 0-1 range if they came as 0-100 (which they do now from derivation)
-        # Frontend multiplies by 100 for display (e.g., 0.75 -> 75%)
-        # So we must store as 0.0 - 1.0 (float)
-        
+        # Normalize scores to 0-1 range
         if confidence > 1.0: confidence /= 100.0
         if clarity > 1.0: clarity /= 100.0
         if resilience > 1.0: resilience /= 100.0
         if engagement > 1.0: engagement /= 100.0
         
-        # Clamp to 0-1 just in case
         confidence = max(0.0, min(confidence, 1.0))
         clarity = max(0.0, min(clarity, 1.0))
         resilience = max(0.0, min(resilience, 1.0))
@@ -194,22 +200,16 @@ def run_real_pipeline(session_id: int):
 
         # -- Generate Dynamic Feedback --
         feedback_tips = []
-        
-        # Positive Reinforcement
         if engagement > 0.8:
             feedback_tips.append({"type": "positive", "text": "Excellent energy and variation throughout the response."})
         if confidence > 0.8:
             feedback_tips.append({"type": "positive", "text": "Demonstrated strong composure and confidence."})
-            
-        # Constructive Feedback
         if clarity < 0.5:
             feedback_tips.append({"type": "neutral", "text": "Consider slowing down to improve clarity and articulation."})
         if resilience < 0.6:
             feedback_tips.append({"type": "negative", "text": "Detected signs of stress or hesitation. Try to maintain composure under pressure."})
         if engagement < 0.4:
             feedback_tips.append({"type": "negative", "text": "Vocal delivery was somewhat monotone. Try adding more expression."})
-            
-        # Default if empty
         if not feedback_tips:
             feedback_tips.append({"type": "positive", "text": "Good overall performance. Keep practicing to refine your delivery."})
 
@@ -280,8 +280,6 @@ async def trigger_analysis(session_id: int, background_tasks: BackgroundTasks, d
     db_session.status = "processing"
     db.commit()
     background_tasks.add_task(run_real_pipeline, session_id)
-    # WARNING: Reverted to async
-    # run_real_pipeline(session_id)
     return {"status": "Analysis queued", "session_id": session_id}
 
 @router.get("/{session_id}/result")
@@ -311,7 +309,6 @@ def get_analysis_result(session_id: int, db: Session = Depends(get_db)):
         }
         
     # Merge existing result data with extra session info
-    # We construct a clean dictionary to ensure stability
     response_data = {
         "transcript": result.transcript,
         "confidence_score": result.confidence_score,
