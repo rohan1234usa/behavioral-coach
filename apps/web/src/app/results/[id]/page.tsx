@@ -41,6 +41,10 @@ export default function ResultPage() {
           setData(result.data);
           setLoading(false);
           clearInterval(interval);
+        } else if (result.status === 'failed') {
+          setLoading(false);
+          setData(null); // Will show "Report Generation Failed" UI
+          clearInterval(interval);
         }
       } catch (e) {
         // console.error(e);
@@ -75,8 +79,8 @@ export default function ResultPage() {
             <h1 className="text-4xl md:text-5xl font-sans font-bold text-foreground mb-2">Analysis Report</h1>
             <div className="flex gap-6 text-sm text-muted-foreground font-mono">
               <span className="flex items-center gap-2"><FileText className="w-4 h-4" /> REF: {id}</span>
-              <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> {new Date().toLocaleDateString()}</span>
-              <span className="flex items-center gap-2"><User className="w-4 h-4" /> CANDIDATE_01</span>
+              <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> {data.created_at ? new Date(data.created_at).toLocaleDateString() : new Date().toLocaleDateString()}</span>
+              <span className="flex items-center gap-2"><User className="w-4 h-4" /> {data.candidate_name?.toUpperCase() || "CANDIDATE"}</span>
             </div>
           </div>
           <div className="flex gap-4">
@@ -102,7 +106,7 @@ export default function ResultPage() {
               <div className="p-4 border-t border-border bg-secondary/20">
                 <h3 className="text-xs font-sans font-bold uppercase tracking-widest text-muted-foreground mb-2">Transcript Excerpt</h3>
                 <p className="font-mono text-sm leading-relaxed text-foreground/80 italic">
-                  "{data.transcript ? data.transcript.substring(0, 150) : "Audio processed successfully. Initializing text extraction..."}..."
+                  "{data.transcript ? data.transcript.substring(0, 150) + "..." : "No transcript available yet."}"
                 </p>
               </div>
             </div>
@@ -110,7 +114,7 @@ export default function ResultPage() {
             <div className="stacked-card p-6">
               <h3 className="text-sm font-sans font-bold uppercase tracking-widest text-foreground mb-4 border-b border-border pb-2">AI Summary</h3>
               <p className="font-body text-base leading-relaxed text-foreground/80">
-                {data.summary || "The candidate demonstrated strong structural coherence. However, vocal delivery lacked modulation in key stress periods."}
+                {data.summary || "Summary not available for this session."}
               </p>
             </div>
           </div>
@@ -138,7 +142,7 @@ export default function ResultPage() {
 
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={data.timeline || []}>
+                  <LineChart data={data.metrics_data?.timeline || []}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
                     <XAxis dataKey="timestamp" hide />
                     <YAxis hide domain={[0, 100]} />
@@ -157,9 +161,13 @@ export default function ResultPage() {
             <div className="space-y-4">
               <h3 className="text-sm font-sans font-bold uppercase tracking-widest text-foreground border-b border-border pb-2">Coach feedback</h3>
 
-              <FeedbackItem type="positive" text="Maintained strong eye contact throughout the introduction phase." />
-              <FeedbackItem type="neutral" text="Pacing slowed significantly during complex technical explanations." />
-              <FeedbackItem type="negative" text="Detected multiple instances of vocal fry at sentence endings." />
+              {data.metrics_data?.feedback_tips && data.metrics_data.feedback_tips.length > 0 ? (
+                data.metrics_data.feedback_tips.map((tip: any, index: number) => (
+                  <FeedbackItem key={index} type={tip.type} text={tip.text} />
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground italic">No specific feedback available for this session.</div>
+              )}
             </div>
 
           </div>

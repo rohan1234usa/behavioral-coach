@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     AWS_REGION: str = "us-east-1"
     S3_BUCKET_NAME: str
 
+    # Imentiv AI
+    IMENTIV_API_KEY: str = ""
+
     class Config:
         env_file = ".env"
         extra = "ignore"

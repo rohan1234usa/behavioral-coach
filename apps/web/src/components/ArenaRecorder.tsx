@@ -164,14 +164,21 @@ export default function ArenaRecorder({ initialQuestion = "Describe a difficult 
     }
 
     try {
-      const sessionData = await api.startSession(initialQuestion);
+      const sessionData = await api.startSession(
+        initialQuestion,
+        session.user?.email,
+        session.user?.name
+      );
       await api.uploadVideo(sessionData.session_id, blob);
       await api.triggerAnalysis(sessionData.session_id);
       router.push(`/results/${sessionData.session_id}`);
-    } catch (err) {
-      console.error("❌ ERROR:", err);
-      // alert("Analysis failed. Check backend logs.");
-      window.location.reload();
+    } catch (err: unknown) {
+      console.error("❌ ERROR in handleUploadFlow:", err);
+      if (err instanceof Error) {
+        console.error("Error details:", err.message, err.stack);
+      }
+      alert("Analysis failed. Check console for details.");
+      // window.location.reload(); // Removed to allow debugging
     }
   };
 

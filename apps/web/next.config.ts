@@ -10,6 +10,22 @@ const nextConfig: NextConfig = {
         source: '/minio-proxy/:path*',
         destination: 'http://127.0.0.1:9000/:path*',
       },
+      {
+        source: '/api/upload/:path*',
+        destination: 'http://127.0.0.1:8000/api/upload/:path*',
+      },
+      {
+        source: '/api/analysis/:path*',
+        destination: 'http://127.0.0.1:8000/api/analysis/:path*',
+      },
+      {
+        source: '/api/sessions/:path*',
+        destination: 'http://127.0.0.1:8000/api/sessions/:path*',
+      },
+      {
+        source: '/api/questions/:path*',
+        destination: 'http://127.0.0.1:8000/api/questions/:path*',
+      },
     ];
   },
 };

@@ -3,8 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 
-# FORCE LOCAL SQLITE for dev environment to avoid Docker "db" host error
-os.environ["DATABASE_URL"] = "sqlite:///./sql_app.db"
+# FORCE LOCAL SQLITE only if DATABASE_URL is not set (i.e. running locally without docker-compose)
+if not os.getenv("DATABASE_URL"):
+    os.environ["DATABASE_URL"] = "sqlite:///./sql_app.db"
 load_dotenv()  # Ensure other env vars are loaded
 
 from app.api.endpoints import analysis, upload, sessions
@@ -20,7 +21,10 @@ app = FastAPI(title="Behavioural Coach API")
 # Allow Frontend access
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"], 
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:8000/api';
+// Use relative path to leverage Next.js Rewrites (avoids CORS)
+const API_BASE = '/api';
 
 // Types matching the Backend Schema
 export interface Session {
@@ -36,8 +37,13 @@ export interface ConfidenceData {
 
 export const api = {
   // 1. Get Presigned URL
-  startSession: async (question: string): Promise<Session> => {
-    const res = await axios.post(`${API_BASE}/upload/presigned-url`, { question });
+  startSession: async (question: string, userEmail?: string | null, userName?: string | null): Promise<Session> => {
+    const payload = {
+      question,
+      user_email: userEmail,
+      user_name: userName
+    };
+    const res = await axios.post(`${API_BASE}/upload/presigned-url`, payload);
     return res.data;
   },
 

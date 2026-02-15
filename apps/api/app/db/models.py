@@ -38,6 +38,9 @@ class AnalysisResult(Base):
     resilience_score = Column(Float, default=0.0) 
     engagement_score = Column(Float, default=0.0) 
     
+    # Top emotion detected by Imentiv
+    dominant_emotion = Column(String, nullable=True)
+    
     # Full JSON blob for frontend charts
     metrics_data = Column(JSON)
     

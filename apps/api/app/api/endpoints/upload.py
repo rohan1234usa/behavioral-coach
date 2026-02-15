@@ -11,17 +11,39 @@ router = APIRouter()
 class UploadRequest(BaseModel):
     file_type: str = "video/webm"
     question: str = "Tell me about yourself."
+    user_email: str = None
+    user_name: str = None
 
 @router.post("/presigned-url")
 def get_upload_url(payload: UploadRequest, db: Session = Depends(get_db)):
-    # 1. Generate unique file key
+    from app.db.models import User # Import here to avoid circular deps if any
+    
+    # 1. Handle User Association
+    user_id = None
+    if payload.user_email:
+        # Check if user exists
+        user = db.query(User).filter(User.email == payload.user_email).first()
+        if not user:
+            # Create new user
+            user = User(
+                email=payload.user_email, 
+                full_name=payload.user_name or "Candidate",
+                target_role="General"
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        user_id = user.id
+
+    # 2. Generate unique file key
     file_key = f"uploads/{uuid.uuid4()}.webm"
     
-    # 2. Create Session Record in DB (Status: 'created')
+    # 3. Create Session Record in DB (Status: 'created')
     new_session = UserSession(
         question_text=payload.question,
         video_s3_key=file_key,
-        status="created"
+        status="created",
+        user_id=user_id
     )
     db.add(new_session)
     db.commit()
