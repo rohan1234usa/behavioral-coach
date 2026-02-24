@@ -10,18 +10,30 @@ export interface Session {
   video_key: string;
 }
 
+export interface FeedbackTip {
+  type: 'positive' | 'negative' | 'neutral';
+  text: string;
+}
+
 export interface AnalysisData {
+  transcript: string;
+  summary: string;
   confidence_score: number;
   clarity_score: number;
   resilience_score: number;
   engagement_score: number;
+  dominant_emotion: string | null;
+  candidate_name: string;
+  created_at: string;
   metrics_data: {
     timeline: Array<{
       timestamp: number;
       valence: number;
       arousal: number;
     }>;
-    feedback_tips: string[];
+    dominant_emotion: string | null;
+    raw_emotions: Record<string, number>;
+    feedback_tips: FeedbackTip[];
   };
 }
 

@@ -124,10 +124,17 @@ export default function ResultPage() {
 
             {/* KEY METRICS GRID */}
             <div className="grid grid-cols-2 gap-4">
-              <ReportMetric label="Confidence" value={data.confidence_score} status="optimal" />
-              <ReportMetric label="Clarity" value={data.clarity_score} status="optimal" />
-              <ReportMetric label="Resilience" value={data.resilience_score} status="warning" />
-              <ReportMetric label="Engagement" value={data.engagement_score} status="optimal" />
+              {[
+                { label: 'Confidence', value: data.confidence_score },
+                { label: 'Clarity', value: data.clarity_score },
+                { label: 'Resilience', value: data.resilience_score },
+                { label: 'Engagement', value: data.engagement_score },
+              ].map(({ label, value }) => {
+                const pct = Math.round((value || 0) * 100);
+                const status: 'optimal' | 'warning' | 'critical' =
+                  pct >= 70 ? 'optimal' : pct >= 45 ? 'warning' : 'critical';
+                return <ReportMetric key={label} label={label} value={value} status={status} />;
+              })}
             </div>
 
             {/* TIMELINE ANALYSIS */}

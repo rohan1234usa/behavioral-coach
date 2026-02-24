@@ -62,8 +62,8 @@ function InternalRecorder({ useRecorder, onUpload }: { useRecorder: any, onUploa
         <div className="w-[80vw] max-w-[600px] aspect-square bg-muted/30 border-[3px] border-border shadow-[0_20px_40px_-10px_rgba(0,0,0,0.1)] p-1 transition-all duration-500">
 
           {/* SCREEN */}
-          <div className="w-full h-full bg-black relative overflow-hidden grayscale">
-            <video ref={videoRef} autoPlay muted className="w-full h-full object-cover opacity-90" />
+          <div className="w-full h-full bg-black relative overflow-hidden">
+            <video ref={videoRef} autoPlay muted className="w-full h-full object-contain" />
 
             {/* RECORDING INDICATOR (PHYSICAL DOT) */}
             {status === 'recording' && (

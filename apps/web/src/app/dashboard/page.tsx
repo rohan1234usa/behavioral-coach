@@ -12,22 +12,17 @@ import {
     Scatter,
     XAxis,
     YAxis,
-    ZAxis,
-    Tooltip,
-    Cell
+    Tooltip
 } from 'recharts';
 
-// --- MOCK DATA FOR DOT PLOTS ---
 // Minimalist "Dot Plot": Just points on a line to show distribution
 const generateDotData = (count: number) => {
     return Array.from({ length: count }).map((_, i) => ({
         x: i,
         y: 50 + Math.random() * 50,
-        z: 1 // uniform size
+        z: 1
     }));
 };
-
-const mockData = generateDotData(20);
 
 export default function Dashboard() {
     const { data: session, status } = useSession();
@@ -96,12 +91,28 @@ export default function Dashboard() {
                 <ConfidenceGauge />
             </div>
 
-            {/* METRICS GRID: "CARD CATALOG" */}
+            {/* METRICS GRID: Aggregated averages from real sessions */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
-                <MetricCard title="Confidence" value="82%" data={mockData} color="#292524" />
-                <MetricCard title="Clarity" value="94%" data={mockData} color="#292524" />
-                <MetricCard title="Resilience" value="71%" data={mockData} color="#B91C1C" />
-                <MetricCard title="Engagement" value="88%" data={mockData} color="#059669" />
+                {(['confidence', 'clarity', 'resilience', 'engagement'] as const).map((metric) => {
+                    const completed = sessions.filter(s => s.status === 'completed' && s[`${metric}_score`] != null);
+                    const avg = completed.length > 0
+                        ? Math.round(completed.reduce((sum: number, s: any) => sum + s[`${metric}_score`] * 100, 0) / completed.length)
+                        : null;
+                    const dotData = completed.map((s: any, i: number) => ({
+                        x: i,
+                        y: Math.round(s[`${metric}_score`] * 100),
+                        z: 1
+                    }));
+                    return (
+                        <MetricCard
+                            key={metric}
+                            title={metric.charAt(0).toUpperCase() + metric.slice(1)}
+                            value={avg !== null ? `${avg}%` : '—'}
+                            data={dotData.length > 0 ? dotData : generateDotData(5)}
+                            color="#292524"
+                        />
+                    );
+                })}
             </div>
 
             {/* INDEX TABLE */}
@@ -128,16 +139,20 @@ export default function Dashboard() {
                             {sessions.map((session, i) => (
                                 <tr key={session.id} className="hover:bg-secondary/30 transition-colors group">
                                     <td className="p-6 text-muted-foreground">#{i.toString().padStart(3, '0')}</td>
-                                    <td className="p-6 font-medium text-foreground">
-                                        {session.transcript || "Untitled Session Analysis"}
+                                    <td className="p-6 font-medium text-foreground max-w-xs truncate">
+                                        {session.question_text || 'Untitled Session'}
                                     </td>
                                     <td className="p-6 text-muted-foreground">
                                         {new Date(session.created_at).toLocaleDateString()}
                                     </td>
                                     <td className="p-6 text-right">
-                                        <Link href={`/results/${session.id}`} className="inline-flex items-center gap-1 text-xs font-bold uppercase text-primary border-b border-transparent group-hover:border-primary transition-all">
-                                            View <ArrowUpRight className="w-3 h-3" />
-                                        </Link>
+                                        {session.status === 'completed' ? (
+                                            <Link href={`/results/${session.id}`} className="inline-flex items-center gap-1 text-xs font-bold uppercase text-primary border-b border-transparent group-hover:border-primary transition-all">
+                                                View <ArrowUpRight className="w-3 h-3" />
+                                            </Link>
+                                        ) : (
+                                            <span className="text-xs uppercase tracking-widest text-muted-foreground font-mono">{session.status}</span>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

@@ -19,6 +19,76 @@ s3_internal = boto3.client('s3',
 )
 
 
+def fetch_transcript_with_retry(client, results, max_retries=10, initial_delay=3.0):
+    """
+    Fetches transcript from Imentiv text/audio endpoints with retry logic.
+    The v1/texts and v1/audios endpoints return 500 initially but eventually
+    return 200 — this is a known Imentiv bug. Per their recommendation,
+    we treat 500/422/404 the same and keep retrying.
+    """
+    text_id = results.get("text_id")
+    audio_id = results.get("audio_id")
+
+    if not text_id and not audio_id:
+        print("⚠️ No text_id or audio_id in results — skipping transcript fetch", flush=True)
+        return ""
+
+    # Access the SDK's internal session for authenticated requests
+    try:
+        session = client._base_client.session
+        base_url = client.config.base_url.rstrip("/")
+    except AttributeError:
+        print("⚠️ Could not access SDK internal session — skipping transcript fetch", flush=True)
+        return ""
+
+    # Build ordered list of endpoints to try
+    endpoints = []
+    if text_id:
+        endpoints.append((f"{base_url}/v1/texts/{text_id}", "text", text_id))
+    if audio_id:
+        endpoints.append((f"{base_url}/v1/audios/{audio_id}", "audio", audio_id))
+
+    for url, source_type, source_id in endpoints:
+        delay = initial_delay
+        for attempt in range(1, max_retries + 1):
+            try:
+                print(f"🔄 Transcript fetch attempt {attempt}/{max_retries} "
+                      f"from {source_type} ({source_id[:8]}...) ...", flush=True)
+                resp = session.get(url)
+
+                if resp.status_code == 200:
+                    data = resp.json()
+                    # Extract transcript — try common field names
+                    transcript = (
+                        data.get("transcript") or
+                        data.get("text") or
+                        data.get("summary") or
+                        data.get("content") or
+                        ""
+                    )
+                    if transcript:
+                        print(f"✅ Transcript retrieved on attempt {attempt} "
+                              f"from {source_type} ({len(transcript)} chars)", flush=True)
+                        return transcript
+                    else:
+                        print(f"⚠️ Got 200 but no transcript content in response keys: "
+                              f"{list(data.keys())}", flush=True)
+
+                # Treat 500, 422, 404 the same — retry (per Imentiv dev recommendation)
+                print(f"⏳ Got {resp.status_code} — retrying in {delay:.1f}s ...", flush=True)
+
+            except Exception as e:
+                print(f"⚠️ Transcript fetch error: {e} — retrying in {delay:.1f}s ...", flush=True)
+
+            time.sleep(delay)
+            delay = min(delay * 1.5, 30.0)  # Exponential backoff, cap at 30s
+
+        print(f"❌ Exhausted {max_retries} retries for {source_type} endpoint", flush=True)
+
+    print("❌ All transcript endpoints exhausted — using fallback", flush=True)
+    return ""
+
+
 def run_real_pipeline(session_id: int):
     """
     Downloads video from MinIO → Uploads to Imentiv via official SDK →
@@ -54,7 +124,36 @@ def run_real_pipeline(session_id: int):
         # 4. Wait for analysis to complete, then fetch full results
         #    SDK handles all polling internally with get_results(wait=True)
         print(f"⏳ Waiting for Imentiv analysis to complete...", flush=True)
-        results = client.video.get_results(video_id, wait=True, poll_interval=3.0)
+        try:
+            results = client.video.get_results(video_id, wait=True, poll_interval=3.0)
+        except Exception as sdk_err:
+            # The SDK sometimes fails to parse the response (e.g. 'audio'
+            # field is not a dict). Fall back to raw JSON via the internal
+            # HTTP session, bypassing Pydantic validation.
+            print(f"⚠️ SDK get_results() failed ({sdk_err}), falling back to raw HTTP...", flush=True)
+            try:
+                session_http = client._base_client.session
+                base_url = client.config.base_url.rstrip("/")
+                # Corrected endpoint suffix
+                fallback_url = f"{base_url}/v2/videos/{video_id}/multimodal-analytics"
+                print(f"🔄 Fetching raw results from: {fallback_url}", flush=True)
+                raw_resp = session_http.get(fallback_url)
+                
+                if raw_resp.status_code == 422:
+                    print(f"❌ Server returned 422: {raw_resp.text}", flush=True)
+                
+                raw_resp.raise_for_status()
+                results = raw_resp.json()
+                print(f"✅ Raw fallback succeeded, keys: {list(results.keys())}", flush=True)
+            except Exception as fallback_err:
+                # Capture the response text if available to help debug 422s
+                err_context = ""
+                if 'raw_resp' in locals() and raw_resp is not None:
+                    err_context = f" | Status: {raw_resp.status_code} | Body: {raw_resp.text[:500]}"
+                
+                raise RuntimeError(
+                    f"Both SDK and raw fallback failed. SDK: {sdk_err} | Raw: {fallback_err}{err_context}"
+                )
         
         # Debug: log the response structure on first runs
         print(f"✅ Raw SDK response keys: {list(results.keys())}", flush=True)
@@ -75,7 +174,15 @@ def run_real_pipeline(session_id: int):
             dominant_emotion = dominant_emotion.get("name", "neutral")
         
         # -- Transcript / Summary --
+        # First check if SDK response already has it, otherwise retry the raw endpoints
         transcript = results.get("summary", "") or results.get("transcript", "")
+        speaker_count = int(results.get("speaker_count", 0))
+        if not transcript and speaker_count > 0:
+            print("📝 No transcript in SDK response — fetching with retry...", flush=True)
+            transcript = fetch_transcript_with_retry(client, results)
+        elif not transcript and speaker_count == 0:
+            print("🔇 No speakers detected (speaker_count=0) — skipping transcript retry", flush=True)
+            transcript = "No speech detected in this recording."
         
         # -- Emotion Timeline --
         frames = (
@@ -169,17 +276,36 @@ def run_real_pipeline(session_id: int):
                 neutral = float(emotions.get("neutral") or 0.0)
                 contempt = float(emotions.get("contempt") or 0.0)
 
-                # --- SCIENTIFIC METRIC FORMULAS ---
-                confidence = (neutral + joy) - (fear + sadness + anger)
-                clarity = neutral - (surprise + anger + fear)
-                engagement = (joy + surprise + 0.1 * anger) + (1.0 - neutral) * 0.5
-                resilience = 1.0 - (fear + sadness + disgust + contempt)
+                # --- IMPROVED METRIC FORMULAS ---
+                # Each formula uses a weighted ratio approach so that
+                # small amounts of negative emotion don't collapse the
+                # score to 0, and scores differentiate meaningfully.
+
+                # Confidence: high when calm/happy, low when fearful/sad/angry
+                pos_conf = neutral * 0.5 + joy * 0.5
+                neg_conf = fear * 0.4 + sadness * 0.3 + anger * 0.3
+                confidence = pos_conf / max(pos_conf + neg_conf, 0.01)
+
+                # Clarity: high when composed (neutral/joy), low when agitated
+                pos_clar = neutral * 0.6 + joy * 0.2
+                neg_clar = surprise * 0.3 + anger * 0.35 + fear * 0.35
+                clarity = pos_clar / max(pos_clar + neg_clar, 0.01)
+
+                # Engagement: high when expressive, low when flat/neutral
+                expressive = joy * 0.5 + surprise * 0.25 + anger * 0.1 + fear * 0.05 + sadness * 0.1
+                flat = neutral * 1.0
+                engagement = expressive / max(expressive + flat * 0.5, 0.01)
+
+                # Resilience: high when composed under pressure (inverse of distress)
+                distress = fear * 0.35 + sadness * 0.30 + disgust * 0.20 + contempt * 0.15
+                composure = 1.0 - min(distress * 2.5, 1.0)
+                resilience = composure
 
                 # Clamp all scores to 0.0 - 1.0 range
-                confidence = max(0.0, min(confidence, 1.0)) * 100.0
-                clarity = max(0.0, min(clarity, 1.0)) * 100.0
-                engagement = max(0.0, min(engagement, 1.0)) * 100.0
-                resilience = max(0.0, min(resilience, 1.0)) * 100.0
+                confidence = max(0.0, min(confidence, 1.0))
+                clarity = max(0.0, min(clarity, 1.0))
+                engagement = max(0.0, min(engagement, 1.0))
+                resilience = max(0.0, min(resilience, 1.0))
 
                 # Derive dominant emotion if API skipped it
                 if not dominant_emotion and emotions:
@@ -187,11 +313,7 @@ def run_real_pipeline(session_id: int):
                 
                 print(f"📐 Derived scores: conf={confidence:.1f} clar={clarity:.1f} eng={engagement:.1f} res={resilience:.1f} dom={dominant_emotion}", flush=True)
 
-        # Normalize scores to 0-1 range
-        if confidence > 1.0: confidence /= 100.0
-        if clarity > 1.0: clarity /= 100.0
-        if resilience > 1.0: resilience /= 100.0
-        if engagement > 1.0: engagement /= 100.0
+        # Final safety clamp (scores are already in 0-1 range)
         
         confidence = max(0.0, min(confidence, 1.0))
         clarity = max(0.0, min(clarity, 1.0))
@@ -229,7 +351,7 @@ def run_real_pipeline(session_id: int):
         db.query(AnalysisResult).filter(AnalysisResult.session_id == session_id).delete()
         analysis_result = AnalysisResult(
             session_id=session_id,
-            transcript=transcript if transcript else "Analysis complete.",
+            transcript=transcript if transcript else "No transcript available.",
             confidence_score=confidence,
             clarity_score=clarity,
             resilience_score=resilience,
@@ -309,8 +431,34 @@ def get_analysis_result(session_id: int, db: Session = Depends(get_db)):
         }
         
     # Merge existing result data with extra session info
+    # Generate a concise AI summary from the metrics
+    metrics = result.metrics_data or {}
+    dom = result.dominant_emotion or "neutral"
+    conf_pct = round((result.confidence_score or 0) * 100)
+    eng_pct = round((result.engagement_score or 0) * 100)
+    clar_pct = round((result.clarity_score or 0) * 100)
+    res_pct = round((result.resilience_score or 0) * 100)
+    
+    summary_parts = []
+    summary_parts.append(f"Dominant emotion detected: {dom.capitalize()}.")
+    if conf_pct >= 70:
+        summary_parts.append(f"Strong confidence at {conf_pct}%.")
+    elif conf_pct >= 40:
+        summary_parts.append(f"Moderate confidence at {conf_pct}%.")
+    else:
+        summary_parts.append(f"Low confidence at {conf_pct}% — consider practicing composure.")
+    if eng_pct >= 80:
+        summary_parts.append(f"Excellent engagement ({eng_pct}%).")
+    if clar_pct < 40:
+        summary_parts.append(f"Clarity needs improvement ({clar_pct}%).")
+    if res_pct >= 70:
+        summary_parts.append(f"Good resilience under pressure ({res_pct}%).")
+    
+    ai_summary = " ".join(summary_parts)
+    
     response_data = {
         "transcript": result.transcript,
+        "summary": ai_summary,
         "confidence_score": result.confidence_score,
         "clarity_score": result.clarity_score,
         "resilience_score": result.resilience_score,

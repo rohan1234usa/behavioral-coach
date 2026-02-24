@@ -18,9 +18,24 @@ s3_internal = boto3.client('s3',
 # 1. GET ALL SESSIONS (For Dashboard)
 @router.get("/")
 def get_sessions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    # Fetch sessions sorted by newest first
+    # Fetch sessions sorted by newest first, with joined analysis
     sessions = db.query(SessionModel).order_by(SessionModel.created_at.desc()).offset(skip).limit(limit).all()
-    return sessions
+    return [
+        {
+            "id": s.id,
+            "question_text": s.question_text,
+            "status": s.status,
+            "created_at": s.created_at,
+            "video_s3_key": s.video_s3_key,
+            # Include summary scores from analysis if available
+            "confidence_score": s.analysis.confidence_score if s.analysis else None,
+            "engagement_score": s.analysis.engagement_score if s.analysis else None,
+            "clarity_score": s.analysis.clarity_score if s.analysis else None,
+            "resilience_score": s.analysis.resilience_score if s.analysis else None,
+            "dominant_emotion": s.analysis.dominant_emotion if s.analysis else None,
+        }
+        for s in sessions
+    ]
 
 # 2. STREAM VIDEO (The "Proxy Player")
 @router.get("/{session_id}/video")
