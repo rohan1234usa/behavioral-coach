@@ -3,9 +3,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { api } from '@/services/api';
+import { api, AnalysisData } from '@/services/api';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import PDFReport from '@/components/PDFReport';
 import {
   ArrowLeft,
   FileText,
@@ -31,6 +34,41 @@ export default function ResultPage() {
   const { id } = useParams();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportPDF = async () => {
+    if (!data || exporting) return;
+
+    setExporting(true);
+    try {
+      // Small delay to ensure Recharts/React have finished rendering
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      const element = document.getElementById('pdf-report-content');
+      if (!element) return;
+
+      const canvas = await html2canvas(element, {
+        scale: 1.5, // Good balance of quality and size
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        windowWidth: 800, // Match the component width
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.85); // Use JPEG for smaller file size
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Analysis_Report_${id}.pdf`);
+    } catch (error) {
+      console.error('PDF Export Error:', error);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -87,8 +125,13 @@ export default function ResultPage() {
             <button className="stone-button-secondary inline-flex items-center gap-2 text-xs">
               <Share2 className="w-4 h-4" /> Share
             </button>
-            <button className="stone-button inline-flex items-center gap-2 text-xs">
-              <Download className="w-4 h-4" /> Export PDF
+            <button
+              onClick={handleExportPDF}
+              disabled={exporting}
+              className="stone-button inline-flex items-center gap-2 text-xs disabled:opacity-50"
+            >
+              <Download className={`w-4 h-4 ${exporting ? 'animate-bounce' : ''}`} />
+              {exporting ? 'Generating...' : 'Export PDF'}
             </button>
           </div>
         </header>
@@ -177,6 +220,13 @@ export default function ResultPage() {
               )}
             </div>
 
+          </div>
+        </div>
+
+        {/* Hidden PDF Content: Rendered off-screen for capture */}
+        <div style={{ position: 'fixed', left: '-2000px', top: '0', width: '800px', zIndex: -100 }}>
+          <div id="pdf-report-content">
+            {data && <PDFReport data={data} sessionId={id as string} />}
           </div>
         </div>
       </div>

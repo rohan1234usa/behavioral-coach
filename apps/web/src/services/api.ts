@@ -5,9 +5,17 @@ const API_BASE = '/api';
 
 // Types matching the Backend Schema
 export interface Session {
-  session_id: number;
-  upload_url: string;
-  video_key: string;
+  id: number;
+  display_id: number;
+  question_text: string;
+  status: string;
+  created_at: string;
+  video_s3_key: string;
+  confidence_score?: number;
+  engagement_score?: number;
+  clarity_score?: number;
+  resilience_score?: number;
+  dominant_emotion?: string | null;
 }
 
 export interface FeedbackTip {

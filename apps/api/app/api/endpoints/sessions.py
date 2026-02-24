@@ -20,9 +20,14 @@ s3_internal = boto3.client('s3',
 def get_sessions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     # Fetch sessions sorted by newest first, with joined analysis
     sessions = db.query(SessionModel).order_by(SessionModel.created_at.desc()).offset(skip).limit(limit).all()
+    
+    # Get total count for stable indexing
+    total_count = db.query(SessionModel).count()
+    
     return [
         {
             "id": s.id,
+            "display_id": total_count - (skip + i),
             "question_text": s.question_text,
             "status": s.status,
             "created_at": s.created_at,
@@ -34,7 +39,7 @@ def get_sessions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db))
             "resilience_score": s.analysis.resilience_score if s.analysis else None,
             "dominant_emotion": s.analysis.dominant_emotion if s.analysis else None,
         }
-        for s in sessions
+        for i, s in enumerate(sessions)
     ]
 
 # 2. STREAM VIDEO (The "Proxy Player")

@@ -122,42 +122,89 @@ def run_real_pipeline(session_id: int):
         time.sleep(5)
 
         # 4. Wait for analysis to complete, then fetch full results
-        #    SDK handles all polling internally with get_results(wait=True)
-        print(f"⏳ Waiting for Imentiv analysis to complete...", flush=True)
-        try:
-            results = client.video.get_results(video_id, wait=True, poll_interval=3.0)
-        except Exception as sdk_err:
-            # The SDK sometimes fails to parse the response (e.g. 'audio'
-            # field is not a dict). Fall back to raw JSON via the internal
-            # HTTP session, bypassing Pydantic validation.
-            print(f"⚠️ SDK get_results() failed ({sdk_err}), falling back to raw HTTP...", flush=True)
+        #    Manual polling with a fallback from V2 (multimodal) to V1 (video-only)
+        #    if the video has a missing or invalid audio track.
+        print(f"⏳ Waiting for Imentiv analysis to complete (timeout: 300s)...", flush=True)
+        
+        start_time = time.time()
+        max_wait = 300  # 5 minutes
+        results = None
+        use_v1_fallback = False
+        
+        while time.time() - start_time < max_wait:
+            try:
+                if not use_v1_fallback:
+                    # Try V2 Multimodal (the preferred source)
+                    try:
+                        status_resp = client.video.get_status(video_id, wait=False)
+                        status = status_resp.get("status")
+                        
+                        if status == "completed":
+                            print(f"✅ V2 Analysis completed in {int(time.time() - start_time)}s", flush=True)
+                            results = status_resp
+                            break
+                        elif status == "failed":
+                            raise RuntimeError(f"V2 Analysis failed: {status_resp}")
+                    except Exception as e:
+                        err_msg = str(e)
+                        # If Imentiv rejects multimodal due to audio, switch to V1 video-only fallback
+                        if "audio" in err_msg.lower() and ("404" in err_msg or "invalid" in err_msg.lower()):
+                            print("⚠️ V2 multimodal failed due to audio track issues. Switching to V1 video-only fallback...", flush=True)
+                            use_v1_fallback = True
+                            continue
+                        raise # Re-raise other errors to be caught by the outer catch
+                
+                else:
+                    # V1 Fallback (Resilient to silent videos)
+                    session_http = client._base_client.session
+                    base_url = client.config.base_url.rstrip("/")
+                    v1_url = f"{base_url}/v1/videos/{video_id}"
+                    
+                    resp = session_http.get(v1_url)
+                    if resp.status_code == 200:
+                        v1_data = resp.json()
+                        if v1_data.get("status") == "completed":
+                            print(f"✅ V1 Fallback completed in {int(time.time() - start_time)}s", flush=True)
+                            results = v1_data
+                            break
+                        elif v1_data.get("status") == "failed":
+                            raise RuntimeError(f"V1 Fallback reported failure: {v1_data}")
+                    elif resp.status_code == 422:
+                        # 422 in V1 means processing (missing annotated_video_mp4 field etc)
+                        # We print status anyway below
+                        pass
+                    else:
+                        resp.raise_for_status()
+
+                # Always print a heartbeat so we know polling is still running
+                print(f"  ... polling (elapsed: {int(time.time() - start_time)}s, mode: {'V1' if use_v1_fallback else 'V2'})", flush=True)
+
+            except Exception as e:
+                err_msg = str(e)
+                # Still log the status for debugging
+                print(f"  ... waiting (elapsed: {int(time.time() - start_time)}s, mode: {'V1' if use_v1_fallback else 'V2'}, err: {err_msg[:50]})", flush=True)
+            
+            time.sleep(10)
+        
+        if not results:
+            print(f"⚠️ Polling timed out. Attempting one last raw V2 fetch...", flush=True)
             try:
                 session_http = client._base_client.session
                 base_url = client.config.base_url.rstrip("/")
-                # Corrected endpoint suffix
                 fallback_url = f"{base_url}/v2/videos/{video_id}/multimodal-analytics"
-                print(f"🔄 Fetching raw results from: {fallback_url}", flush=True)
                 raw_resp = session_http.get(fallback_url)
-                
-                if raw_resp.status_code == 422:
-                    print(f"❌ Server returned 422: {raw_resp.text}", flush=True)
-                
-                raw_resp.raise_for_status()
-                results = raw_resp.json()
-                print(f"✅ Raw fallback succeeded, keys: {list(results.keys())}", flush=True)
-            except Exception as fallback_err:
-                # Capture the response text if available to help debug 422s
-                err_context = ""
-                if 'raw_resp' in locals() and raw_resp is not None:
-                    err_context = f" | Status: {raw_resp.status_code} | Body: {raw_resp.text[:500]}"
-                
-                raise RuntimeError(
-                    f"Both SDK and raw fallback failed. SDK: {sdk_err} | Raw: {fallback_err}{err_context}"
-                )
+                if raw_resp.status_code == 200:
+                    results = raw_resp.json()
+                    print(f"✅ Final V2 fallback succeeded!", flush=True)
+                else:
+                    raise RuntimeError(f"Status {raw_resp.status_code}")
+            except Exception as fe:
+                raise RuntimeError(f"Analysis timed out after {max_wait}s and all fallbacks failed. Last err: {fe}")
         
-        # Debug: log the response structure on first runs
-        print(f"✅ Raw SDK response keys: {list(results.keys())}", flush=True)
-        print(f"📊 Full response (truncated): {json.dumps(results, default=str)[:2000]}", flush=True)
+        # Debug: log the response structure
+        print(f"📊 Collected response keys: {list(results.keys())}", flush=True)
+        # print(f"📊 Raw response (truncated): {json.dumps(results, default=str)[:1000]}", flush=True)
+
 
         # 4. MAP RESPONSE TO DB SCHEMA
         #    Extract metrics defensively — default to 0.0 if missing

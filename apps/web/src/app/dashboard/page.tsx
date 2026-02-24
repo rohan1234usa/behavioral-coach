@@ -138,7 +138,7 @@ export default function Dashboard() {
                         <tbody className="divide-y divide-border/50 font-mono text-sm">
                             {sessions.map((session, i) => (
                                 <tr key={session.id} className="hover:bg-secondary/30 transition-colors group">
-                                    <td className="p-6 text-muted-foreground">#{i.toString().padStart(3, '0')}</td>
+                                    <td className="p-6 text-muted-foreground">#{session.display_id.toString().padStart(3, '0')}</td>
                                     <td className="p-6 font-medium text-foreground max-w-xs truncate">
                                         {session.question_text || 'Untitled Session'}
                                     </td>
