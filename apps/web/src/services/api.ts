@@ -18,6 +18,12 @@ export interface Session {
   dominant_emotion?: string | null;
 }
 
+export interface SessionInitResponse {
+  session_id: number;
+  upload_url: string;
+  video_key: string;
+}
+
 export interface FeedbackTip {
   type: 'positive' | 'negative' | 'neutral';
   text: string;
@@ -57,7 +63,7 @@ export interface ConfidenceData {
 
 export const api = {
   // 1. Get Presigned URL
-  startSession: async (question: string, userEmail?: string | null, userName?: string | null): Promise<Session> => {
+  startSession: async (question: string, userEmail?: string | null, userName?: string | null): Promise<SessionInitResponse> => {
     const payload = {
       question,
       user_email: userEmail,

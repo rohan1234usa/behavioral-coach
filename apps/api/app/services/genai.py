@@ -12,7 +12,7 @@ class GenAIService:
             raise ValueError("GEMINI_API_KEY is not set")
         genai.configure(api_key=api_key)
         # User confirmed visibility of 'Gemini 2.5 Flash' in billing dashboard
-        # Switching to this model to align with their active quota.
+        # Switching back to this model as requested.
         self.model = genai.GenerativeModel('gemini-2.5-flash')
 
     def _get_fallback_questions(self, company: str) -> List[str]:
