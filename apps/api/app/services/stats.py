@@ -26,16 +26,29 @@ class StatsService:
         if top_scores:
             scores = [s[0] for s in top_scores]
             potential_score = sum(scores) / len(scores)
+
+        # Recent Progression Boost
+        recent_session = db.query(AnalysisResult.confidence_score)\
+            .join(UserSession)\
+            .filter(UserSession.status == 'completed')\
+            .order_by(desc(UserSession.created_at))\
+            .first()
+            
+        if recent_session:
+            recent_score = recent_session[0]
+            if recent_score > potential_score:
+                potential_score = min(100.0, recent_score + 5.0)
         
         # 2. MOMENTUM (30%): Activity in the last 7 days
-        # 1 session = 10pts, 2 = 20pts, 3+ = 30pts
+        # Progressive scale: 1=10, 2=18, 3=24, 4=28, 5+=30
         seven_days_ago = datetime.now() - timedelta(days=7)
         recent_sessions_count = db.query(UserSession)\
             .filter(UserSession.created_at >= seven_days_ago)\
             .filter(UserSession.status == 'completed')\
             .count()
             
-        momentum_score = min(recent_sessions_count * 10, 30)
+        momentum_points = {0: 0, 1: 10, 2: 18, 3: 24, 4: 28}
+        momentum_score = momentum_points.get(recent_sessions_count, 30)
         
         # 3. Final Calculation
         # Potential (0-100) * 0.7 -> Max 70
@@ -45,14 +58,16 @@ class StatsService:
         # 4. Message Generation
         message = "Start practicing to build your score!"
         if final_score >= 90:
-            message = "You are Interview Ready! Maintenance mode."
+            message = "You are Interview Ready! Keep up the momentum."
         elif final_score >= 75:
             if momentum_score < 30:
-                message = "Great potential! Warm up to unlock your full score."
+                message = "Great potential! Practice consistently to hit your peak."
             else:
-                message = "Looking strong. Keep polishing those answers."
+                message = "Strong momentum and high potential. Excellent work!"
+        elif final_score >= 50:
+            message = "You're making solid progress. Consistency is key."
         elif final_score > 0:
-            message = "Good start. Focus on quality to raise your potential."
+            message = "Good start! Keep practicing to build confidence."
             
         return {
             "score": round(final_score),

@@ -86,7 +86,7 @@ export default function ConfidenceGauge() {
                                 <span className="text-sm">Potential</span>
                             </div>
                             <div className="text-2xl font-bold text-foreground">{data.breakdown.potential}<span className="text-sm text-muted-foreground">/100</span></div>
-                            <div className="text-xs text-muted-foreground mt-1">Top 3 Avg</div>
+                            <div className="text-xs text-muted-foreground mt-1">Best Performance</div>
                         </div>
 
                         <div className="bg-muted/20 p-4 rounded-xl border border-border">
@@ -94,7 +94,7 @@ export default function ConfidenceGauge() {
                                 <Zap className="w-4 h-4 text-amber-500" />
                                 <span className="text-sm">Momentum</span>
                             </div>
-                            <div className="text-2xl font-bold text-foreground">{data.breakdown.recent_sessions}<span className="text-sm text-muted-foreground">/3</span></div>
+                            <div className="text-2xl font-bold text-foreground">{data.breakdown.recent_sessions}<span className="text-sm text-muted-foreground">/5</span></div>
                             <div className="text-xs text-muted-foreground mt-1">Sessions this week</div>
                         </div>
                     </div>
