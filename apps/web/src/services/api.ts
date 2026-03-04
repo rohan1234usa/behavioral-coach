@@ -79,9 +79,7 @@ export const api = {
     formData.append('file', file);
 
     // We post to the endpoint we just created in Step 1
-    await axios.post(`${API_BASE}/sessions/${sessionId}/upload`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+    await axios.post(`${API_BASE}/sessions/${sessionId}/upload`, formData);
   },
 
   // NEW: Fetch history
@@ -114,9 +112,7 @@ export const api = {
     if (resumeFile) {
       formData.append('resume', resumeFile);
     }
-    const res = await axios.post(`${API_BASE}/questions/generate`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+    const res = await axios.post(`${API_BASE}/questions/generate`, formData);
     return res.data;
   },
 
