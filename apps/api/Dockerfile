@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Install the imentiv SDK included in the code folder
-RUN pip install -e /code/imentiv-python-sdk
+RUN pip install -e /code/imentiv-python-sdk/imentiv-python-sdk
 
 # Start the FastAPI application
 CMD uvicorn app.main:app --host 0.0.0.0 --port 8000
