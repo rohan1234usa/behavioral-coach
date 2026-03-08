@@ -24,7 +24,7 @@ class StatsService:
             
         potential_score = 0.0
         if top_scores:
-            scores = [s[0] for s in top_scores]
+            scores = [(s[0] or 0) * 100 for s in top_scores]
             potential_score = sum(scores) / len(scores)
 
         # Recent Progression Boost
@@ -35,7 +35,7 @@ class StatsService:
             .first()
             
         if recent_session:
-            recent_score = recent_session[0]
+            recent_score = (recent_session[0] or 0) * 100
             if recent_score > potential_score:
                 potential_score = min(100.0, recent_score + 5.0)
         
@@ -70,11 +70,11 @@ class StatsService:
             message = "Good start! Keep practicing to build confidence."
             
         return {
-            "score": round(final_score),
+            "score": min(100, round(final_score)),
             "breakdown": {
-                "potential": round(potential_score),
+                "potential": min(100, round(potential_score)),
                 "momentum": momentum_score,
-                "recent_sessions": recent_sessions_count
+                "recent_sessions": min(5, recent_sessions_count)
             },
             "message": message
         }

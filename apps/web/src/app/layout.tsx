@@ -70,21 +70,19 @@ export default async function RootLayout({
       <body className={`${spaceGrotesk.variable} ${ibmPlex.variable} font-body antialiased bg-background text-foreground`} suppressHydrationWarning>
         <AuthProvider>
           <ThemeProvider>
-            <div className="min-h-screen flex flex-col border-x-8 border-background">
-              {/* Physical bevel effect on sides if desired, or just standard full width */}
-
-              {/* ARCHITECTURAL HEADER */}
-              <nav className="border-b-2 border-primary/10 bg-background sticky top-0 z-50 h-20 flex items-center justify-between px-6 md:px-12 backdrop-blur-sm">
+            <div className="min-h-screen flex flex-col">
+              {/* HEADER */}
+              <nav className="border-b border-border bg-background/90 sticky top-0 z-50 h-16 flex items-center justify-between px-6 md:px-12 backdrop-blur-md">
                 <div className="flex items-center gap-12">
                   <Link href="/" className="flex items-center gap-3 text-foreground group">
-                    <div className="w-6 h-6 bg-primary text-background flex items-center justify-center rounded-sm">
+                    <div className="w-6 h-6 bg-primary text-primary-foreground flex items-center justify-center rounded-md">
                       <Square className="w-3 h-3 fill-current" />
                     </div>
-                    <span className="font-sans font-bold text-xl tracking-tight uppercase group-hover:opacity-70 transition-opacity">
-                      Coach<span className="text-muted-foreground">.ai</span>
+                    <span className="font-sans font-bold text-xl tracking-tight group-hover:opacity-70 transition-opacity">
+                      Coach<span className="text-muted-foreground font-medium">.ai</span>
                     </span>
                   </Link>
-                  <div className="hidden md:flex gap-8 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                  <div className="hidden md:flex gap-8 text-sm font-medium text-muted-foreground">
                     <Link href="/dashboard" className="hover:text-foreground transition-colors">History</Link>
                     <Link href="/arena" className="hover:text-foreground transition-colors">Practice</Link>
                     <Link href="/about" className="hover:text-foreground transition-colors">About</Link>
@@ -106,16 +104,16 @@ export default async function RootLayout({
               </main>
 
               {/* FOOTER */}
-              <footer className="border-t-2 border-primary/10 py-12 bg-background">
+              <footer className="border-t border-border py-12 bg-background">
                 <div className="px-6 md:px-12 flex justify-between items-end">
                   <div className="flex flex-col gap-2">
-                    <span className="font-sans font-bold text-2xl uppercase text-foreground/20">Coach.ai</span>
-                    <span className="text-xs text-muted-foreground uppercase tracking-widest">© 2025 // Built with Honesty</span>
+                    <span className="font-sans font-bold text-xl text-foreground/30">Coach.ai</span>
+                    <span className="text-sm text-muted-foreground">© 2025 // Built to build confidence</span>
                   </div>
-                  <div className="flex gap-8 text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                    <a href="#" className="hover:text-foreground">Manifesto</a>
-                    <a href="#" className="hover:text-foreground">Materials</a>
-                    <a href="#" className="hover:text-foreground">Legal</a>
+                  <div className="flex gap-8 text-sm text-muted-foreground font-medium">
+                    <a href="#" className="hover:text-foreground transition-colors">Manifesto</a>
+                    <a href="#" className="hover:text-foreground transition-colors">Materials</a>
+                    <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
                   </div>
                 </div>
               </footer>

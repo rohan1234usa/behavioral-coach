@@ -7,29 +7,28 @@ export default function LandingPage() {
     <div className="flex flex-col min-h-screen bg-background text-foreground font-body">
 
       {/* HERO SECTION */}
-      <section className="relative px-6 py-24 md:py-32 lg:px-12 border-b-2 border-border grid-bg">
-        <div className="max-w-7xl mx-auto">
+      <section className="relative px-6 py-24 md:py-32 lg:px-12 border-b border-border grid-bg">
+        <div className="max-w-7xl mx-auto flex flex-col items-center text-center">
 
-          <div className="inline-block border-2 border-primary px-4 py-1 mb-8 bg-surface shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
-            <span className="font-sans font-bold uppercase tracking-widest text-xs">Behavioral Architecture v2.0</span>
+          <div className="inline-block border border-border rounded-full px-4 py-1 mb-8 bg-surface/50 backdrop-blur-sm shadow-sm">
+            <span className="font-sans font-medium text-sm text-muted-foreground">Behavioral AI Coach v2.0</span>
           </div>
 
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-sans font-bold uppercase tracking-tighter leading-[0.9] mb-12 text-foreground">
-            Ace the <br />
-            <span className="text-muted-foreground">Behavioral Interview</span>
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-sans font-bold tracking-tight leading-[1.1] mb-8 text-foreground max-w-4xl">
+            Master the <br className="md:hidden" />
+            <span className="text-muted-foreground">Behavioral Interview</span> with AI
           </h1>
 
-          <p className="max-w-2xl text-xl md:text-2xl leading-relaxed text-foreground/80 font-medium mb-12 border-l-4 border-accent pl-6">
-            We don't do "tips". We provide structural analysis of your speaking patterns.
-            Calibrate your confidence with <span className="font-bold border-b-2 border-accent">architectural precision</span>.
+          <p className="max-w-xl text-lg md:text-xl leading-relaxed text-muted-foreground font-medium mb-12">
+            Practice in a safe, stress-free environment. Get objective feedback on your confidence, clarity, and pacing to build your interviewing skills.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-6">
+          <div className="flex flex-col sm:flex-row gap-4">
             <Link
               href="/arena"
               className="stone-button inline-flex items-center justify-center gap-3 text-lg"
             >
-              Enter The Arena <ArrowUpRight className="w-5 h-5" />
+              Start Practicing <ArrowUpRight className="w-5 h-5" />
             </Link>
 
             <Link
@@ -44,24 +43,24 @@ export default function LandingPage() {
       </section>
 
       {/* THREE PILLARS */}
-      <section className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x-2 divide-border border-b-2 border-border">
+      <section className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border border-b border-border">
 
         <FeatureColumn
           icon={<Scale className="w-8 h-8" />}
-          title="The Foundation"
-          desc="Vocal stability analysis to ensure your delivery can support heavy questioning."
+          title="Vocal Stability"
+          desc="Analyze pacing and volume consistency to ensure your delivery matches your content."
         />
 
         <FeatureColumn
           icon={<Brain className="w-8 h-8" />}
-          title="The Framework"
-          desc="Cognitive load monitoring. We detect when your structural integrity is compromised."
+          title="Cognitive Load"
+          desc="Monitor transcript flow and identify excessive pause times to keep answers clear and concise."
         />
 
         <FeatureColumn
           icon={<Crosshair className="w-8 h-8" />}
-          title="The Facade"
-          desc="Micro-expression tracking. Ensure your external presentation matches your internal logic."
+          title="Expressiveness"
+          desc="Track subtle shifts in facial expressions to understand how your non-verbal cues align with your words."
         />
 
       </section>
@@ -70,15 +69,15 @@ export default function LandingPage() {
 
 
       {/* FOOTER CALL */}
-      <section className="py-24 px-6 text-center bg-foreground text-background">
-        <h2 className="text-4xl md:text-6xl font-sans font-bold uppercase tracking-tight mb-8">
-          Build your presence.
+      <section className="py-24 px-6 text-center bg-surface/30">
+        <h2 className="text-3xl md:text-5xl font-sans font-bold tracking-tight mb-8">
+          Ready to build your confidence?
         </h2>
         <Link
           href="/arena"
-          className="inline-block bg-background text-foreground px-8 py-4 font-sans font-bold uppercase tracking-widest text-lg hover:bg-surface transition-colors"
+          className="stone-button inline-block text-lg"
         >
-          Begin Calibration
+          Begin Practice Session
         </Link>
       </section>
 
@@ -90,8 +89,8 @@ function FeatureColumn({ icon, title, desc }: { icon: any, title: string, desc: 
   return (
     <div className="p-12 hover:bg-surface transition-colors group">
       <div className="mb-6 text-foreground group-hover:text-accent transition-colors">{icon}</div>
-      <h3 className="text-2xl font-sans font-bold uppercase tracking-tight mb-4">{title}</h3>
-      <p className="text-lg text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors">
+      <h3 className="text-xl font-sans font-bold tracking-tight mb-4">{title}</h3>
+      <p className="text-base text-muted-foreground leading-relaxed transition-colors">
         {desc}
       </p>
     </div>

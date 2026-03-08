@@ -102,12 +102,12 @@ export default function ResultPage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4 animate-pulse">
         <div className="w-12 h-12 border-4 border-border border-t-foreground rounded-full animate-spin"></div>
-        <span className="font-sans font-bold uppercase tracking-widest text-xs text-muted-foreground">Compiling Report...</span>
+        <span className="font-sans font-medium text-sm text-muted-foreground">Compiling report...</span>
       </div>
     </div>
   );
 
-  if (!data) return <div className="p-8 text-destructive font-sans font-bold uppercase">Report Generation Failed</div>;
+  if (!data) return <div className="p-8 text-destructive font-sans font-medium">Report Generation Failed</div>;
 
   const videoUrl = api.getVideoUrl(id as string);
 
@@ -116,26 +116,26 @@ export default function ResultPage() {
       <div className="max-w-6xl mx-auto">
 
         {/* HEADER */}
-        <header className="mb-12 border-b-2 border-foreground pb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <header className="mb-12 border-b border-border pb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div>
-            <Link href="/dashboard" className="inline-flex items-center text-muted-foreground hover:text-foreground mb-4 transition-colors font-sans text-xs uppercase tracking-widest">
-              <ArrowLeft className="w-3 h-3 mr-2" /> Return to History
+            <Link href="/dashboard" className="inline-flex items-center text-muted-foreground hover:text-foreground mb-4 transition-colors font-sans text-sm font-medium">
+              <ArrowLeft className="w-4 h-4 mr-2" /> Return to History
             </Link>
             <h1 className="text-4xl md:text-5xl font-sans font-bold text-foreground mb-2">Analysis Report</h1>
-            <div className="flex gap-6 text-sm text-muted-foreground font-mono">
+            <div className="flex gap-6 text-sm text-muted-foreground font-mono mt-4">
               <span className="flex items-center gap-2"><FileText className="w-4 h-4" /> REF: {id}</span>
               <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> {data.created_at ? new Date(data.created_at).toLocaleDateString() : new Date().toLocaleDateString()}</span>
-              <span className="flex items-center gap-2"><User className="w-4 h-4" /> {data.candidate_name?.toUpperCase() || "CANDIDATE"}</span>
+              <span className="flex items-center gap-2"><User className="w-4 h-4" /> {data.candidate_name || "Candidate"}</span>
             </div>
           </div>
           <div className="flex gap-4">
-            <button className="stone-button-secondary inline-flex items-center gap-2 text-xs">
+            <button className="stone-button-secondary inline-flex items-center gap-2 text-sm">
               <Share2 className="w-4 h-4" /> Share
             </button>
             <button
               onClick={handleExportPDF}
               disabled={exporting}
-              className="stone-button inline-flex items-center gap-2 text-xs disabled:opacity-50"
+              className="stone-button inline-flex items-center gap-2 text-sm disabled:opacity-50"
             >
               <Download className={`w-4 h-4 ${exporting ? 'animate-bounce' : ''}`} />
               {exporting ? 'Generating...' : 'Export PDF'}
@@ -147,20 +147,20 @@ export default function ResultPage() {
 
           {/* LEFT COLUMN: THE EVIDENCE (Video) */}
           <div className="lg:col-span-5 space-y-8">
-            <div className="stacked-card p-3 bg-secondary/10 border-border/40 shadow-xl">
-              <div className="aspect-video bg-black rounded relative overflow-hidden group shadow-inner">
+            <div className="stacked-card p-3 shadow-sm bg-surface">
+              <div className="aspect-video bg-black rounded-lg relative overflow-hidden group shadow-inner">
                 <video ref={videoRef} controls className="w-full h-full object-contain" src={videoUrl}>
                   Your browser does not support the video tag.
                 </video>
               </div>
-              <div className="p-4 border-t border-border bg-secondary/20 max-h-64 overflow-y-auto">
-                <h3 className="text-xs font-sans font-bold uppercase tracking-widest text-muted-foreground mb-4 sticky top-0 bg-secondary/90 py-1">Interactive Transcript</h3>
+              <div className="p-4 border-t border-border mt-3 max-h-64 overflow-y-auto">
+                <h3 className="text-sm font-sans font-semibold text-foreground mb-4 sticky top-0 bg-surface/90 py-1 backdrop-blur-sm">Interactive Transcript</h3>
                 {data.metrics_data?.transcript_segments && data.metrics_data.transcript_segments.length > 0 ? (
                   <div className="space-y-3">
                     {data.metrics_data.transcript_segments.map((seg: any, idx: number) => (
                       <div
                         key={idx}
-                        className="group flex gap-3 cursor-pointer p-2 hover:bg-muted/50 rounded transition-colors"
+                        className="group flex gap-3 cursor-pointer p-2 hover:bg-muted/50 rounded-lg transition-colors"
                         onClick={() => {
                           if (videoRef.current) {
                             videoRef.current.currentTime = seg.start;
@@ -168,7 +168,7 @@ export default function ResultPage() {
                           }
                         }}
                       >
-                        <span className="text-xs font-mono text-accent/80 mt-1 whitespace-nowrap opacity-70 group-hover:opacity-100">
+                        <span className="text-xs font-mono text-muted-foreground mt-1 whitespace-nowrap opacity-70 group-hover:opacity-100">
                           {new Date(seg.start * 1000).toISOString().substr(14, 5)}
                         </span>
                         <p className="font-body text-sm leading-relaxed text-foreground/90">
@@ -178,16 +178,16 @@ export default function ResultPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="font-mono text-sm leading-relaxed text-foreground/80 italic">
+                  <p className="font-body text-sm leading-relaxed text-muted-foreground italic">
                     "{data.transcript ? data.transcript.substring(0, 150) + "..." : "No transcript available yet."}"
                   </p>
                 )}
               </div>
             </div>
 
-            <div className="stacked-card p-8 bg-secondary/5 border-border/40 shadow-lg">
-              <h3 className="text-xs font-sans font-bold uppercase tracking-widest text-muted-foreground mb-6 border-b border-border/50 pb-3 flex items-center gap-2">
-                <FileText className="w-4 h-4" /> AI Executive Summary
+            <div className="stacked-card p-8 shadow-sm bg-surface">
+              <h3 className="text-sm font-sans font-semibold text-foreground mb-6 border-b border-border pb-3 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-accent" /> AI Executive Summary
               </h3>
               <p className="font-body text-base leading-relaxed text-foreground/90">
                 {data.summary || "Summary not available for this session."}
@@ -214,12 +214,12 @@ export default function ResultPage() {
             </div>
 
             {/* TIMELINE ANALYSIS */}
-            <div className="stacked-card p-6">
+            <div className="stacked-card p-6 shadow-sm bg-surface">
               <div className="flex justify-between items-center mb-6 border-b border-border pb-2">
-                <h3 className="text-sm font-sans font-bold uppercase tracking-widest text-foreground">Emotional Amplitude</h3>
-                <div className="flex gap-4 text-xs font-mono">
-                  <span className="flex items-center gap-1"><div className="w-2 h-2 bg-foreground rounded-full"></div> Tone</span>
-                  <span className="flex items-center gap-1"><div className="w-2 h-2 bg-border rounded-full"></div> Energy</span>
+                <h3 className="text-sm font-sans font-semibold text-foreground">Emotional Amplitude</h3>
+                <div className="flex gap-4 text-xs font-medium">
+                  <span className="flex items-center gap-1"><div className="w-2 h-2 bg-accent rounded-full"></div> Tone</span>
+                  <span className="flex items-center gap-1"><div className="w-2 h-2 bg-muted-foreground rounded-full"></div> Energy</span>
                 </div>
               </div>
 
@@ -230,11 +230,11 @@ export default function ResultPage() {
                     <XAxis dataKey="timestamp" hide />
                     <YAxis hide domain={[0, 100]} />
                     <Tooltip
-                      contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', fontFamily: 'var(--font-ibm)' }}
+                      contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', fontFamily: 'var(--font-ibm)', borderRadius: '0.5rem' }}
                       itemStyle={{ color: 'var(--foreground)' }}
                     />
-                    <Line type="step" dataKey="tone" className="stroke-foreground" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                    <Line type="monotone" dataKey="energy" className="stroke-muted" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                    <Line type="step" dataKey="tone" className="stroke-accent" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                    <Line type="monotone" dataKey="energy" className="stroke-muted-foreground" strokeWidth={2} strokeDasharray="5 5" dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -242,7 +242,7 @@ export default function ResultPage() {
 
             {/* ACTION ITEMS */}
             <div className="space-y-4">
-              <h3 className="text-sm font-sans font-bold uppercase tracking-widest text-foreground border-b border-border pb-2">Coach feedback</h3>
+              <h3 className="text-sm font-sans font-semibold text-foreground border-b border-border pb-2">Coach feedback</h3>
 
               {data.metrics_data?.feedback_tips && data.metrics_data.feedback_tips.length > 0 ? (
                 data.metrics_data.feedback_tips.map((tip: any, index: number) => (
@@ -255,13 +255,13 @@ export default function ResultPage() {
 
             {/* EMOTIONAL SPIKES */}
             {data.metrics_data?.emotional_spikes && data.metrics_data.emotional_spikes.length > 0 && (
-              <div className="stacked-card p-8 bg-secondary/5 border-border/40 shadow-lg">
-                <h3 className="text-xs font-sans font-bold uppercase tracking-widest text-muted-foreground mb-6 border-b border-border/50 pb-3 flex items-center gap-2">
-                  <AlertOctagon className="w-4 h-4" /> Emotional Highlights
+              <div className="stacked-card p-8 shadow-sm bg-surface">
+                <h3 className="text-sm font-sans font-semibold text-foreground mb-6 border-b border-border pb-3 flex items-center gap-2">
+                  <AlertOctagon className="w-4 h-4 text-orange-500" /> Emotional Highlights
                 </h3>
                 <div className="space-y-3">
                   {data.metrics_data.emotional_spikes.map((spike: any, idx: number) => (
-                    <div key={idx} className="flex justify-between items-center p-3 bg-secondary/30 rounded border border-border/50 cursor-pointer hover:border-accent/50 transition-colors"
+                    <div key={idx} className="flex justify-between items-center p-3 bg-secondary/50 rounded-lg border border-border cursor-pointer hover:border-accent/50 transition-colors"
                       onClick={() => {
                         if (videoRef.current) {
                           videoRef.current.currentTime = spike.timestamp;
@@ -274,7 +274,7 @@ export default function ResultPage() {
                         </span>
                         <span className="text-sm font-body font-medium text-foreground">{spike.type}</span>
                       </div>
-                      <span className="text-xs font-mono text-accent">Value: {spike.value.toFixed(2)}</span>
+                      <span className="text-xs font-medium text-orange-500 bg-orange-500/10 px-2 py-1 rounded-full">Value: {spike.value.toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
@@ -302,11 +302,11 @@ function ReportMetric({ label, value, status }: { label: string, value: number, 
   const bgClass = status === 'optimal' ? 'bg-accent/10' : status === 'warning' ? 'bg-orange-500/10' : 'bg-destructive/10';
 
   return (
-    <div className="stacked-card p-6 flex flex-col gap-3 bg-secondary/5 border-border/40 shadow-md hover:shadow-lg transition-shadow">
-      <span className="text-xs font-sans font-bold uppercase tracking-widest text-muted-foreground">{label}</span>
+    <div className="stacked-card p-6 flex flex-col gap-3 shadow-sm hover:shadow-md transition-all bg-surface">
+      <span className="text-sm font-sans font-medium text-muted-foreground">{label}</span>
       <div className="flex items-baseline gap-3">
-        <span className="text-4xl md:text-5xl font-mono font-medium text-foreground tracking-tighter">{percentage}%</span>
-        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${colorClass} ${bgClass}`}>{status}</span>
+        <span className="text-4xl md:text-5xl font-mono font-semibold text-foreground tracking-tight">{percentage}%</span>
+        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${colorClass} ${bgClass}`}>{status}</span>
       </div>
     </div>
   );
@@ -318,7 +318,7 @@ function FeedbackItem({ type, text }: { type: 'positive' | 'negative' | 'neutral
   const borderColor = type === 'positive' ? 'border-accent/30' : type === 'negative' ? 'border-destructive/30' : 'border-border';
 
   return (
-    <div className={`flex gap-4 items-start p-5 bg-secondary/10 border-l-2 ${borderColor} shadow-sm`}>
+    <div className={`flex gap-4 items-start p-5 bg-surface border rounded-lg shadow-sm ${borderColor}`}>
       <Icon className={`w-5 h-5 flex-shrink-0 mt-0.5 ${colorClass}`} />
       <p className="text-sm font-body text-foreground/90 leading-relaxed">{text}</p>
     </div>
