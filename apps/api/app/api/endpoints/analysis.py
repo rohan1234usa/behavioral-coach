@@ -3,26 +3,15 @@ from sqlalchemy.orm import Session
 from app.db.base import get_db, SessionLocal
 from app.db.models import Session as UserSession, AnalysisResult
 from app.clients.imentiv import get_imentiv_client
+from app.services.s3 import s3_service
+from app.core.config import settings
 import os
-import boto3
-import json
-import logging
 import time
 
-# Restore standard logging/print for Docker
 router = APIRouter()
 
-from app.core.config import settings
 
-s3_internal = boto3.client('s3',
-    endpoint_url=settings.S3_ENDPOINT_URL if settings.S3_ENDPOINT_URL else None,
-    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-    region_name=settings.AWS_REGION
-)
-
-
-def fetch_transcript_segments(client, audio_id, max_retries=15, initial_delay=3.0):
+def fetch_transcript_segments(client, audio_id, max_retries=8, initial_delay=1.5):
     """
     Fetches timestamped transcript segments from Imentiv's audio endpoint.
     Includes retry logic to wait for delayed sub-task completion and handle 500 bugs.
@@ -48,12 +37,12 @@ def fetch_transcript_segments(client, audio_id, max_retries=15, initial_delay=3.
                 if segments is not None:
                     return segments
             
-            print(f"⏳ Audio transcript processing (status {resp.status_code}) — retrying in {delay:.1f}s...", flush=True)
+            print(f"⏳ Audio transcript processing (status {resp.status_code}) — retrying in {delay:.1f}s (attempt {attempt}/{max_retries})...", flush=True)
         except Exception as e:
             print(f"⚠️ Transcript fetch error: {e} — retrying...", flush=True)
         
         time.sleep(delay)
-        delay = min(delay * 1.5, 30.0)
+        delay = min(delay * 1.4, 8.0)
         
     print(f"❌ Exhausted {max_retries} retries for transcript segments.", flush=True)
     return []
@@ -71,7 +60,7 @@ def run_real_pipeline(session_id: int):
         print(f"🚀 [SESSION {session_id}] Starting Analysis Pipeline (Official SDK)", flush=True)
         
         # 1. Download video from MinIO / S3
-        s3_internal.download_file(settings.S3_BUCKET_NAME, f"{session_id}.webm", temp_file)
+        s3_service.s3_client.download_file(settings.S3_BUCKET_NAME, f"{session_id}.webm", temp_file)
         print(f"📥 Downloaded video from MinIO for session {session_id}", flush=True)
 
         # 2. Upload to Imentiv via official SDK
@@ -88,14 +77,14 @@ def run_real_pipeline(session_id: int):
         
         print(f"📤 Uploaded to Imentiv. Video ID: {video_id}", flush=True)
 
-        # 3. Wait slightly for backend to register file
-        time.sleep(5)
+        # 3. Brief pause for Imentiv backend to register the file
+        time.sleep(1)
 
         # 4. Wait for analysis to complete, then fetch full results
         print(f"⏳ Waiting for Imentiv analysis to complete via SDK polling...", flush=True)
         
         try:
-            results = client.video.get_results(video_id, wait=True)
+            results = client.video.get_results(video_id, wait=True, poll_interval=1.5)
             print(f"✅ Analysis completed natively via SDK!", flush=True)
         except Exception as e:
             raise RuntimeError(f"Analysis failed or timed out. Last err: {e}")

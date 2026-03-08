@@ -5,7 +5,6 @@ from app.services.genai import genai_service
 
 router = APIRouter()
 
-@APIRouter().post("/generate", response_model=List[str])
 @router.post("/generate")
 async def generate_questions(
     company: str = Form(...),

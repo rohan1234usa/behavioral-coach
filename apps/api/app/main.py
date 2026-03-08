@@ -10,8 +10,8 @@ load_dotenv()  # Ensure other env vars are loaded
 
 from app.api.endpoints import analysis, upload, sessions
 from app.db.base import Base, engine
-import boto3
-import os
+from app.services.s3 import s3_service
+from app.core.config import settings
 
 # Create DB Tables on startup (Dev mode)
 Base.metadata.create_all(bind=engine)
@@ -31,31 +31,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- NEW: Internal S3 Proxy Client ---
-# Use settings for endpoint and credentials to support both local and production S3
-from app.core.config import settings
+# --- STARTUP: Ensure S3 Bucket Exists ---
+try:
+    s3_service.s3_client.create_bucket(Bucket=settings.S3_BUCKET_NAME)
+except Exception:
+    pass  # Bucket likely already exists
 
-s3_internal = boto3.client('s3',
-    endpoint_url=settings.S3_ENDPOINT_URL if settings.S3_ENDPOINT_URL else None,
-    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-    region_name=settings.AWS_REGION
-)
-
-# --- NEW: Proxy Route ---
+# --- Upload Proxy Route ---
 # The frontend uploads to here. This function forwards it to MinIO.
 @app.post("/api/sessions/{session_id}/upload")
 async def upload_video_proxy(session_id: str, file: UploadFile = File(...)):
     try:
-        # 1. Ensure bucket exists (Internal check)
-        try:
-            s3_internal.create_bucket(Bucket=settings.S3_BUCKET_NAME)
-        except:
-            pass # Bucket likely exists
-
-        # 2. Upload the file directly to MinIO/S3
         file_key = f"{session_id}.webm"
-        s3_internal.upload_fileobj(
+        s3_service.s3_client.upload_fileobj(
             file.file, 
             settings.S3_BUCKET_NAME, 
             file_key,

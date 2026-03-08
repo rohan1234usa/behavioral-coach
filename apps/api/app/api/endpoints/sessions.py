@@ -3,20 +3,9 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app.db.base import get_db
 from app.db.models import Session as SessionModel
-import boto3
-import io
+from app.services.s3 import s3_service
 
 router = APIRouter()
-
-# Internal S3 Client (Production-Ready)
-from app.core.config import settings
-
-s3_internal = boto3.client('s3',
-    endpoint_url=settings.S3_ENDPOINT_URL if settings.S3_ENDPOINT_URL else None,
-    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-    region_name=settings.AWS_REGION
-)
 
 # 1. GET ALL SESSIONS (For Dashboard)
 @router.get("/")

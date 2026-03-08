@@ -79,7 +79,16 @@ export default function ResultPage() {
 
   useEffect(() => {
     if (!id) return;
+    let pollCount = 0;
+    const maxPolls = 150; // ~5 minutes at 2s intervals
     const interval = setInterval(async () => {
+      pollCount++;
+      if (pollCount > maxPolls) {
+        setLoading(false);
+        setData(null);
+        clearInterval(interval);
+        return;
+      }
       try {
         const result = await api.getResults(id as string);
         if (result.status === 'completed' && result.data) {
@@ -88,11 +97,11 @@ export default function ResultPage() {
           clearInterval(interval);
         } else if (result.status === 'failed') {
           setLoading(false);
-          setData(null); // Will show "Report Generation Failed" UI
+          setData(null);
           clearInterval(interval);
         }
       } catch (e) {
-        // console.error(e);
+        // Network error — keep trying
       }
     }, 2000);
     return () => clearInterval(interval);
