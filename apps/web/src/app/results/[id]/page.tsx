@@ -142,15 +142,40 @@ export default function ResultPage() {
           <div className="lg:col-span-5 space-y-8">
             <div className="stacked-card p-2">
               <div className="aspect-video bg-muted/20 relative overflow-hidden">
-                <video controls className="w-full h-full object-cover" src={videoUrl}>
+                <video id="session-video" controls className="w-full h-full object-cover" src={videoUrl}>
                   Your browser does not support the video tag.
                 </video>
               </div>
-              <div className="p-4 border-t border-border bg-secondary/20">
-                <h3 className="text-xs font-sans font-bold uppercase tracking-widest text-muted-foreground mb-2">Transcript Excerpt</h3>
-                <p className="font-mono text-sm leading-relaxed text-foreground/80 italic">
-                  "{data.transcript ? data.transcript.substring(0, 150) + "..." : "No transcript available yet."}"
-                </p>
+              <div className="p-4 border-t border-border bg-secondary/20 max-h-64 overflow-y-auto">
+                <h3 className="text-xs font-sans font-bold uppercase tracking-widest text-muted-foreground mb-4 sticky top-0 bg-secondary/90 py-1">Interactive Transcript</h3>
+                {data.metrics_data?.transcript_segments && data.metrics_data.transcript_segments.length > 0 ? (
+                  <div className="space-y-3">
+                    {data.metrics_data.transcript_segments.map((seg: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="group flex gap-3 cursor-pointer p-2 hover:bg-muted/50 rounded transition-colors"
+                        onClick={() => {
+                          const vid = document.getElementById('session-video') as HTMLVideoElement;
+                          if (vid) {
+                            vid.currentTime = seg.start;
+                            vid.play();
+                          }
+                        }}
+                      >
+                        <span className="text-xs font-mono text-accent/80 mt-1 whitespace-nowrap opacity-70 group-hover:opacity-100">
+                          {new Date(seg.start * 1000).toISOString().substr(14, 5)}
+                        </span>
+                        <p className="font-body text-sm leading-relaxed text-foreground/90">
+                          {seg.text}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="font-mono text-sm leading-relaxed text-foreground/80 italic">
+                    "{data.transcript ? data.transcript.substring(0, 150) + "..." : "No transcript available yet."}"
+                  </p>
+                )}
               </div>
             </div>
 
@@ -219,6 +244,34 @@ export default function ResultPage() {
                 <div className="text-sm text-muted-foreground italic">No specific feedback available for this session.</div>
               )}
             </div>
+
+            {/* EMOTIONAL SPIKES */}
+            {data.metrics_data?.emotional_spikes && data.metrics_data.emotional_spikes.length > 0 && (
+              <div className="stacked-card p-6 mt-8">
+                <h3 className="text-sm font-sans font-bold uppercase tracking-widest text-foreground border-b border-border pb-2 mb-4">Emotional Highlights</h3>
+                <div className="space-y-3">
+                  {data.metrics_data.emotional_spikes.map((spike: any, idx: number) => (
+                    <div key={idx} className="flex justify-between items-center p-3 bg-secondary/30 rounded border border-border/50 cursor-pointer hover:border-accent/50 transition-colors"
+                      onClick={() => {
+                        const vid = document.getElementById('session-video') as HTMLVideoElement;
+                        if (vid) {
+                          vid.currentTime = spike.timestamp;
+                          vid.play();
+                        }
+                      }}>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-mono text-muted-foreground bg-background px-2 py-1 rounded">
+                          {new Date(spike.timestamp * 1000).toISOString().substr(14, 5)}
+                        </span>
+                        <span className="text-sm font-body font-medium text-foreground">{spike.type}</span>
+                      </div>
+                      <span className="text-xs font-mono text-accent">Value: {spike.value.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
 
           </div>
         </div>

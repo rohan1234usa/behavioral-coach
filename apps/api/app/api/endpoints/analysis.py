@@ -19,74 +19,41 @@ s3_internal = boto3.client('s3',
 )
 
 
-def fetch_transcript_with_retry(client, results, max_retries=10, initial_delay=3.0):
+def fetch_transcript_segments(client, audio_id, max_retries=15, initial_delay=3.0):
     """
-    Fetches transcript from Imentiv text/audio endpoints with retry logic.
-    The v1/texts and v1/audios endpoints return 500 initially but eventually
-    return 200 — this is a known Imentiv bug. Per their recommendation,
-    we treat 500/422/404 the same and keep retrying.
+    Fetches timestamped transcript segments from Imentiv's audio endpoint.
+    Includes retry logic to wait for delayed sub-task completion and handle 500 bugs.
     """
-    text_id = results.get("text_id")
-    audio_id = results.get("audio_id")
-
-    if not text_id and not audio_id:
-        print("⚠️ No text_id or audio_id in results — skipping transcript fetch", flush=True)
-        return ""
-
-    # Access the SDK's internal session for authenticated requests
+    if not audio_id:
+        return []
+        
+    import time
+    delay = initial_delay
     try:
         session = client._base_client.session
         base_url = client.config.base_url.rstrip("/")
     except AttributeError:
-        print("⚠️ Could not access SDK internal session — skipping transcript fetch", flush=True)
-        return ""
+        return []
 
-    # Build ordered list of endpoints to try
-    endpoints = []
-    if text_id:
-        endpoints.append((f"{base_url}/v1/texts/{text_id}", "text", text_id))
-    if audio_id:
-        endpoints.append((f"{base_url}/v1/audios/{audio_id}", "audio", audio_id))
-
-    for url, source_type, source_id in endpoints:
-        delay = initial_delay
-        for attempt in range(1, max_retries + 1):
-            try:
-                print(f"🔄 Transcript fetch attempt {attempt}/{max_retries} "
-                      f"from {source_type} ({source_id[:8]}...) ...", flush=True)
-                resp = session.get(url)
-
-                if resp.status_code == 200:
-                    data = resp.json()
-                    # Extract transcript — try common field names
-                    transcript = (
-                        data.get("transcript") or
-                        data.get("text") or
-                        data.get("summary") or
-                        data.get("content") or
-                        ""
-                    )
-                    if transcript:
-                        print(f"✅ Transcript retrieved on attempt {attempt} "
-                              f"from {source_type} ({len(transcript)} chars)", flush=True)
-                        return transcript
-                    else:
-                        print(f"⚠️ Got 200 but no transcript content in response keys: "
-                              f"{list(data.keys())}", flush=True)
-
-                # Treat 500, 422, 404 the same — retry (per Imentiv dev recommendation)
-                print(f"⏳ Got {resp.status_code} — retrying in {delay:.1f}s ...", flush=True)
-
-            except Exception as e:
-                print(f"⚠️ Transcript fetch error: {e} — retrying in {delay:.1f}s ...", flush=True)
-
-            time.sleep(delay)
-            delay = min(delay * 1.5, 30.0)  # Exponential backoff, cap at 30s
-
-        print(f"❌ Exhausted {max_retries} retries for {source_type} endpoint", flush=True)
-
-    print("❌ All transcript endpoints exhausted — using fallback", flush=True)
-    return ""
+    url = f"{base_url}/v1/audios/{audio_id}"
+    for attempt in range(1, max_retries + 1):
+        try:
+            resp = session.get(url)
+            if resp.status_code == 200:
+                data = resp.json()
+                segments = data.get("segment_text_emotions")
+                if segments is not None:
+                    return segments
+            
+            print(f"⏳ Audio transcript processing (status {resp.status_code}) — retrying in {delay:.1f}s...", flush=True)
+        except Exception as e:
+            print(f"⚠️ Transcript fetch error: {e} — retrying...", flush=True)
+        
+        time.sleep(delay)
+        delay = min(delay * 1.5, 30.0)
+        
+    print(f"❌ Exhausted {max_retries} retries for transcript segments.", flush=True)
+    return []
 
 
 def run_real_pipeline(session_id: int):
@@ -122,88 +89,15 @@ def run_real_pipeline(session_id: int):
         time.sleep(5)
 
         # 4. Wait for analysis to complete, then fetch full results
-        #    Manual polling with a fallback from V2 (multimodal) to V1 (video-only)
-        #    if the video has a missing or invalid audio track.
-        print(f"⏳ Waiting for Imentiv analysis to complete (timeout: 300s)...", flush=True)
+        print(f"⏳ Waiting for Imentiv analysis to complete via SDK polling...", flush=True)
         
-        start_time = time.time()
-        max_wait = 300  # 5 minutes
-        results = None
-        use_v1_fallback = False
-        
-        while time.time() - start_time < max_wait:
-            try:
-                if not use_v1_fallback:
-                    # Try V2 Multimodal (the preferred source)
-                    try:
-                        status_resp = client.video.get_status(video_id, wait=False)
-                        status = status_resp.get("status")
-                        
-                        if status == "completed":
-                            print(f"✅ V2 Analysis completed in {int(time.time() - start_time)}s", flush=True)
-                            results = status_resp
-                            break
-                        elif status == "failed":
-                            raise RuntimeError(f"V2 Analysis failed: {status_resp}")
-                    except Exception as e:
-                        err_msg = str(e)
-                        # If Imentiv rejects multimodal due to audio, switch to V1 video-only fallback
-                        if "audio" in err_msg.lower() and ("404" in err_msg or "invalid" in err_msg.lower()):
-                            print("⚠️ V2 multimodal failed due to audio track issues. Switching to V1 video-only fallback...", flush=True)
-                            use_v1_fallback = True
-                            continue
-                        raise # Re-raise other errors to be caught by the outer catch
-                
-                else:
-                    # V1 Fallback (Resilient to silent videos)
-                    session_http = client._base_client.session
-                    base_url = client.config.base_url.rstrip("/")
-                    v1_url = f"{base_url}/v1/videos/{video_id}"
-                    
-                    resp = session_http.get(v1_url)
-                    if resp.status_code == 200:
-                        v1_data = resp.json()
-                        if v1_data.get("status") == "completed":
-                            print(f"✅ V1 Fallback completed in {int(time.time() - start_time)}s", flush=True)
-                            results = v1_data
-                            break
-                        elif v1_data.get("status") == "failed":
-                            raise RuntimeError(f"V1 Fallback reported failure: {v1_data}")
-                    elif resp.status_code == 422:
-                        # 422 in V1 means processing (missing annotated_video_mp4 field etc)
-                        # We print status anyway below
-                        pass
-                    else:
-                        resp.raise_for_status()
-
-                # Always print a heartbeat so we know polling is still running
-                print(f"  ... polling (elapsed: {int(time.time() - start_time)}s, mode: {'V1' if use_v1_fallback else 'V2'})", flush=True)
-
-            except Exception as e:
-                err_msg = str(e)
-                # Still log the status for debugging
-                print(f"  ... waiting (elapsed: {int(time.time() - start_time)}s, mode: {'V1' if use_v1_fallback else 'V2'}, err: {err_msg[:50]})", flush=True)
+        try:
+            results = client.video.get_results(video_id, wait=True)
+            print(f"✅ Analysis completed natively via SDK!", flush=True)
+        except Exception as e:
+            raise RuntimeError(f"Analysis failed or timed out. Last err: {e}")
             
-            time.sleep(10)
-        
-        if not results:
-            print(f"⚠️ Polling timed out. Attempting one last raw V2 fetch...", flush=True)
-            try:
-                session_http = client._base_client.session
-                base_url = client.config.base_url.rstrip("/")
-                fallback_url = f"{base_url}/v2/videos/{video_id}/multimodal-analytics"
-                raw_resp = session_http.get(fallback_url)
-                if raw_resp.status_code == 200:
-                    results = raw_resp.json()
-                    print(f"✅ Final V2 fallback succeeded!", flush=True)
-                else:
-                    raise RuntimeError(f"Status {raw_resp.status_code}")
-            except Exception as fe:
-                raise RuntimeError(f"Analysis timed out after {max_wait}s and all fallbacks failed. Last err: {fe}")
-        
-        # Debug: log the response structure
         print(f"📊 Collected response keys: {list(results.keys())}", flush=True)
-        # print(f"📊 Raw response (truncated): {json.dumps(results, default=str)[:1000]}", flush=True)
 
 
         # 4. MAP RESPONSE TO DB SCHEMA
@@ -221,43 +115,60 @@ def run_real_pipeline(session_id: int):
             dominant_emotion = dominant_emotion.get("name", "neutral")
         
         # -- Transcript / Summary --
-        # First check if SDK response already has it, otherwise retry the raw endpoints
-        transcript = results.get("summary", "") or results.get("transcript", "")
-        speaker_count = int(results.get("speaker_count", 0))
-        if not transcript and speaker_count > 0:
-            print("📝 No transcript in SDK response — fetching with retry...", flush=True)
-            transcript = fetch_transcript_with_retry(client, results)
-        elif not transcript and speaker_count == 0:
-            print("🔇 No speakers detected (speaker_count=0) — skipping transcript retry", flush=True)
-            transcript = "No speech detected in this recording."
+        summary = results.get("summary", "") 
+        transcript = results.get("transcript", "")
+        
+        # Fetch Transcript Segments for UI
+        audio_id = results.get("audio_id")
+        raw_segments = fetch_transcript_segments(client, audio_id) or []
+        transcript_segments = []
+        for seg in raw_segments:
+            transcript_segments.append({
+                "start": seg.get("start_millis", 0) / 1000.0,
+                "end": seg.get("end_millis", 0) / 1000.0,
+                "text": seg.get("sentence", "").strip(),
+                "emotion": seg.get("dominant_emotion", {}).get("label", "neutral"),
+                "raw_emotions": seg.get("emotions", {})
+            })
+            
+        # Reconstruct transcript from segments if not provided
+        if not transcript and transcript_segments:
+            transcript = " ".join([s["text"] for s in transcript_segments])
+        elif not transcript:
+            speaker_count = int(results.get("speaker_count", 0))
+            if speaker_count == 0:
+                transcript = "No speech detected in this recording."
         
         # -- Emotion Timeline --
-        frames = (
-            results.get("frames") or 
-            results.get("video_emotions") or 
-            results.get("face_emotions") or 
-            []
-        )
-        
-        fps = results.get("fps", 1) or 1
+        # V2 API drops the 'frames' array for video emotions. 
+        # We synthesize the UI timeline using the text-sentiment array per-sentence instead.
         real_timeline = []
-        
-        for i, frame in enumerate(frames):
-            # Sample once per second (every fps-th frame)
-            if i % max(int(fps), 1) == 0:
-                va = frame.get("valence_arousal", {})
-                if isinstance(va, dict):
-                    valence = va.get("valence", 0.0)
-                    arousal = va.get("arousal", 0.0)
-                else:
-                    valence = float(frame.get("valence", 0.0))
-                    arousal = float(frame.get("arousal", 0.0))
-                
-                real_timeline.append({
-                    "timestamp": round(i / max(int(fps), 1), 1),
-                    "valence": round(float(valence), 3),
-                    "arousal": round(float(arousal), 3),
-                })
+        for seg in transcript_segments:
+            emotions = seg.get("raw_emotions", {})
+            joy = float(emotions.get("joy") or emotions.get("happy") or 0.0)
+            sadness = float(emotions.get("sadness") or emotions.get("sad") or 0.0)
+            anger = float(emotions.get("anger") or emotions.get("angry") or 0.0)
+            fear = float(emotions.get("fear") or 0.0)
+            disgust = float(emotions.get("disgust") or 0.0)
+            surprise = float(emotions.get("surprise") or 0.0)
+            
+            # Map text emotions to valence/arousal approximation
+            valence = joy - (sadness + anger + fear + disgust)
+            arousal = joy + anger + fear + surprise
+            
+            # Amplify signals to make chart distinct
+            valence_amplified = valence * 1.5
+            arousal_amplified = arousal * 1.5
+            
+            # Convert to UI scores [0, 100]
+            valence_score = max(0, min(100, int((valence_amplified + 1.0) * 50.0))) 
+            arousal_score = max(0, min(100, int(arousal_amplified * 100.0)))
+            
+            real_timeline.append({
+                "timestamp": round(seg.get("start", 0), 1),
+                "valence": valence_score,
+                "arousal": arousal_score,
+            })
         
         # -- Aggregate emotion scores if top-level scores are 0 --
         if confidence == 0.0 and clarity == 0.0:
@@ -382,6 +293,24 @@ def run_real_pipeline(session_id: int):
         if not feedback_tips:
             feedback_tips.append({"type": "positive", "text": "Good overall performance. Keep practicing to refine your delivery."})
 
+        # -- Calculate Emotional Spikes from timeline --
+        emotional_spikes = []
+        if real_timeline:
+            # Find max arousal moment
+            max_arousal_pt = max(real_timeline, key=lambda x: x["arousal"])
+            if max_arousal_pt["arousal"] > 75:
+                emotional_spikes.append({"timestamp": max_arousal_pt["timestamp"], "type": "High Energy/Arousal", "value": max_arousal_pt["arousal"]})
+            
+            # Find lowest valence (most negative)
+            min_valence_pt = min(real_timeline, key=lambda x: x["valence"])
+            if min_valence_pt["valence"] < 35:
+                emotional_spikes.append({"timestamp": min_valence_pt["timestamp"], "type": "Negative Shift", "value": min_valence_pt["valence"]})
+                
+            # Find highest valence (most positive)
+            max_valence_pt = max(real_timeline, key=lambda x: x["valence"])
+            if max_valence_pt["valence"] > 75:
+                emotional_spikes.append({"timestamp": max_valence_pt["timestamp"], "type": "Positive Spike", "value": max_valence_pt["valence"]})
+
         # Build the metrics blob for frontend
         metrics = {
             "confidence": confidence,
@@ -391,7 +320,9 @@ def run_real_pipeline(session_id: int):
             "timeline": real_timeline,
             "dominant_emotion": dominant_emotion,
             "raw_emotions": emotions if isinstance(emotions, dict) else {},
-            "feedback_tips": feedback_tips
+            "feedback_tips": feedback_tips,
+            "transcript_segments": transcript_segments,
+            "emotional_spikes": emotional_spikes
         }
 
         # 5. Save to DB
@@ -416,7 +347,9 @@ def run_real_pipeline(session_id: int):
         print(f"✅ Analysis for Session {session_id} saved. Scores: conf={confidence:.2f}, eng={engagement:.2f}, clar={clarity:.2f}, res={resilience:.2f}", flush=True)
 
     except Exception as e:
-        print(f"❌ Analysis Pipeline Failed for Session {session_id}: {e}", flush=True)
+        import traceback
+        err_trace = traceback.format_exc()
+        print(f"❌ Analysis Pipeline Failed for Session {session_id}: {e}\n{err_trace}", flush=True)
         db.rollback()
         db_session = db.query(UserSession).filter(UserSession.id == session_id).first()
         if db_session:
