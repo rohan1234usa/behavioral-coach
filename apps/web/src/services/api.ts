@@ -42,12 +42,16 @@ export interface AnalysisData {
   metrics_data: {
     timeline: Array<{
       timestamp: number;
-      valence: number;
-      arousal: number;
+      tone?: number;
+      energy?: number;
+      valence?: number;  // Kept for backward compatibility
+      arousal?: number;  // Kept for backward compatibility
     }>;
     dominant_emotion: string | null;
     raw_emotions: Record<string, number>;
     feedback_tips: FeedbackTip[];
+    transcript_segments?: Array<{ start: number; end: number; text: string; emotion?: string; raw_emotions?: Record<string, number> }>;
+    emotional_spikes?: Array<{ timestamp: number; type: string; value: number }>;
   };
 }
 
@@ -73,13 +77,15 @@ export const api = {
     return res.data;
   },
 
-  // NEW: Upload to our Python Backend (Bypasses all CORS/Docker issues)
+  // NEW: Upload directly to the Backend (Bypasses Vercel/Next.js body size limits)
   uploadVideo: async (sessionId: number | string, file: Blob) => {
     const formData = new FormData();
     formData.append('file', file);
 
-    // We post to the endpoint we just created in Step 1
-    await axios.post(`${API_BASE}/sessions/${sessionId}/upload`, formData);
+    // In Production: We POST directly to Render to bypass Next.js Vercel 4.5MB Limits.
+    // Locally (undefined env var): We POST to the Next.js API proxy (which has no size limit locally) to avoid CORS.
+    const uploadBase = process.env.NEXT_PUBLIC_BACKEND_URL ? process.env.NEXT_PUBLIC_BACKEND_URL : '';
+    await axios.post(`${uploadBase}/api/sessions/${sessionId}/upload`, formData);
   },
 
   // NEW: Fetch history

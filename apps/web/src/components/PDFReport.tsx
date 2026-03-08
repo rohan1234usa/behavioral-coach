@@ -8,7 +8,9 @@ import {
     Line,
     XAxis,
     YAxis,
-    CartesianGrid
+    CartesianGrid,
+    AreaChart,
+    Area
 } from 'recharts';
 
 interface PDFReportProps {
@@ -111,20 +113,64 @@ const PDFReport: React.FC<PDFReportProps> = ({ data, sessionId }) => {
             {/* EMOTIONAL AMPLITUDE */}
             <div className="mb-12">
                 <h2 className="text-sm font-bold uppercase tracking-widest pb-2 mb-6" style={{ borderBottom: `1px solid ${colors.slate200}` }}>Emotional Dynamics</h2>
-                <div className="h-64 w-full">
+                <div className="h-48 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={data.metrics_data?.timeline || []}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={colors.slate200} />
                             <XAxis dataKey="timestamp" hide />
                             <YAxis domain={[0, 100]} stroke={colors.slate400} fontSize={10} />
-                            <Line type="step" dataKey="valence" stroke={colors.slate900} strokeWidth={3} dot={false} />
-                            <Line type="monotone" dataKey="arousal" stroke={colors.slate400} strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                            <Line type="step" dataKey="tone" stroke={colors.slate900} strokeWidth={3} dot={false} isAnimationActive={false} />
+                            <Line type="monotone" dataKey="energy" stroke={colors.slate400} strokeWidth={2} strokeDasharray="5 5" dot={false} isAnimationActive={false} />
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
                 <div className="flex justify-center gap-8 mt-4 font-mono text-[10px] uppercase" style={{ color: colors.slate400 }}>
-                    <span className="flex items-center gap-2"><div className="w-3 h-3" style={{ backgroundColor: colors.slate900 }}></div> Valence (Sentiment)</span>
-                    <span className="flex items-center gap-2"><div className="w-3 h-3 border-2 border-dashed" style={{ borderColor: colors.slate300 }}></div> Arousal (Intensity)</span>
+                    <span className="flex items-center gap-2"><div className="w-3 h-3" style={{ backgroundColor: colors.slate900 }}></div> Tone (Positivity)</span>
+                    <span className="flex items-center gap-2"><div className="w-3 h-3 border-2 border-dashed" style={{ borderColor: colors.slate300 }}></div> Energy (Intensity)</span>
+                </div>
+            </div>
+
+            {/* TRANSCRIPT & SPIKES */}
+            <div className="mb-12 grid grid-cols-2 gap-8 page-break-before">
+                {/* Transcript */}
+                <div>
+                    <h2 className="text-sm font-bold uppercase tracking-widest pb-2 mb-4" style={{ borderBottom: `1px solid ${colors.slate200}` }}>Session Transcript</h2>
+                    <div className="space-y-3">
+                        {data.metrics_data?.transcript_segments && data.metrics_data.transcript_segments.length > 0 ? (
+                            data.metrics_data.transcript_segments.map((seg: any, idx: number) => (
+                                <div key={idx} className="flex gap-3">
+                                    <span className="text-[10px] font-mono mt-0.5" style={{ color: colors.slate400 }}>
+                                        {new Date(seg.start * 1000).toISOString().substr(14, 5)}
+                                    </span>
+                                    <p className="text-xs leading-relaxed" style={{ color: colors.slate700 }}>{seg.text}</p>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-xs italic" style={{ color: colors.slate500 }}>{data.transcript || "No transcript available."}</p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Emotional Highlights */}
+                <div>
+                    <h2 className="text-sm font-bold uppercase tracking-widest pb-2 mb-4" style={{ borderBottom: `1px solid ${colors.slate200}` }}>Emotional Highlights</h2>
+                    <div className="space-y-3">
+                        {data.metrics_data?.emotional_spikes && data.metrics_data.emotional_spikes.length > 0 ? (
+                            data.metrics_data.emotional_spikes.map((spike: any, idx: number) => (
+                                <div key={idx} className="flex justify-between items-center p-3 rounded" style={{ backgroundColor: colors.slate50, border: `1px solid ${colors.slate200}` }}>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-mono px-1 rounded" style={{ backgroundColor: colors.white, border: `1px solid ${colors.slate200}` }}>
+                                            {new Date(spike.timestamp * 1000).toISOString().substr(14, 5)}
+                                        </span>
+                                        <span className="text-xs font-bold">{spike.type}</span>
+                                    </div>
+                                    <span className="text-[10px] font-mono" style={{ color: colors.slate500 }}>VAL: {spike.value.toFixed(0)}</span>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-xs italic" style={{ color: colors.slate500 }}>No significant emotional spikes detected.</p>
+                        )}
+                    </div>
                 </div>
             </div>
 

@@ -21,10 +21,8 @@ def get_upload_url(payload: UploadRequest, db: Session = Depends(get_db)):
     # 1. Handle User Association
     user_id = None
     if payload.user_email:
-        # Check if user exists
         user = db.query(User).filter(User.email == payload.user_email).first()
         if not user:
-            # Create new user
             user = User(
                 email=payload.user_email, 
                 full_name=payload.user_name or "Candidate",
@@ -35,13 +33,10 @@ def get_upload_url(payload: UploadRequest, db: Session = Depends(get_db)):
             db.refresh(user)
         user_id = user.id
 
-    # 2. Generate unique file key
-    file_key = f"uploads/{uuid.uuid4()}.webm"
-    
-    # 3. Create Session Record in DB (Status: 'created')
+    # 2. Create Session Record first to get the ID
     new_session = UserSession(
         question_text=payload.question,
-        video_s3_key=file_key,
+        video_s3_key="temp", # Temporary
         status="created",
         user_id=user_id
     )
@@ -49,7 +44,12 @@ def get_upload_url(payload: UploadRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_session)
     
-    # 3. Generate S3 URL
+    # 3. Generate correct file key and update DB
+    file_key = f"{new_session.id}.webm"
+    new_session.video_s3_key = file_key
+    db.commit()
+    
+    # 4. Generate S3 URL
     url = s3_service.generate_presigned_upload_url(file_key)
     
     if not url:

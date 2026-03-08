@@ -169,9 +169,19 @@ def run_real_pipeline(session_id: int):
             
             real_timeline.append({
                 "timestamp": round(seg.get("start", 0), 1),
-                "valence": valence_score,
-                "arousal": arousal_score,
+                "tone": valence_score,
+                "energy": arousal_score,
             })
+            
+        # Pad timeline for very short videos (1 data point) to draw a line graph
+        if len(real_timeline) == 1:
+            pt = real_timeline[0]
+            # Duplicate the point at 0s and an arbitrary end time (e.g. 5s later)
+            real_timeline = [
+                {"timestamp": 0.0, "tone": pt["tone"], "energy": pt["energy"]},
+                {"timestamp": max(1.0, pt["timestamp"]), "tone": pt["tone"], "energy": pt["energy"]},
+                {"timestamp": pt["timestamp"] + 3.0, "tone": pt["tone"], "energy": pt["energy"]}
+            ]
         
         # -- Aggregate emotion scores if top-level scores are 0 --
         if confidence == 0.0 and clarity == 0.0:
@@ -299,20 +309,20 @@ def run_real_pipeline(session_id: int):
         # -- Calculate Emotional Spikes from timeline --
         emotional_spikes = []
         if real_timeline:
-            # Find max arousal moment
-            max_arousal_pt = max(real_timeline, key=lambda x: x["arousal"])
-            if max_arousal_pt["arousal"] > 75:
-                emotional_spikes.append({"timestamp": max_arousal_pt["timestamp"], "type": "High Energy/Arousal", "value": max_arousal_pt["arousal"]})
+            # Find max arousal (energy) moment
+            max_arousal_pt = max(real_timeline, key=lambda x: x["energy"])
+            if max_arousal_pt["energy"] > 75:
+                emotional_spikes.append({"timestamp": max_arousal_pt["timestamp"], "type": "High Energy/Arousal", "value": max_arousal_pt["energy"]})
             
-            # Find lowest valence (most negative)
-            min_valence_pt = min(real_timeline, key=lambda x: x["valence"])
-            if min_valence_pt["valence"] < 35:
-                emotional_spikes.append({"timestamp": min_valence_pt["timestamp"], "type": "Negative Shift", "value": min_valence_pt["valence"]})
+            # Find lowest valence (tone - most negative)
+            min_valence_pt = min(real_timeline, key=lambda x: x["tone"])
+            if min_valence_pt["tone"] < 35:
+                emotional_spikes.append({"timestamp": min_valence_pt["timestamp"], "type": "Negative Shift", "value": min_valence_pt["tone"]})
                 
-            # Find highest valence (most positive)
-            max_valence_pt = max(real_timeline, key=lambda x: x["valence"])
-            if max_valence_pt["valence"] > 75:
-                emotional_spikes.append({"timestamp": max_valence_pt["timestamp"], "type": "Positive Spike", "value": max_valence_pt["valence"]})
+            # Find highest valence (tone - most positive)
+            max_valence_pt = max(real_timeline, key=lambda x: x["tone"])
+            if max_valence_pt["tone"] > 75:
+                emotional_spikes.append({"timestamp": max_valence_pt["timestamp"], "type": "Positive Spike", "value": max_valence_pt["tone"]})
 
         # Build the metrics blob for frontend
         metrics = {

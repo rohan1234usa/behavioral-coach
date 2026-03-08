@@ -50,16 +50,18 @@ def get_sessions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db))
 def stream_video(session_id: str):
     try:
         file_key = f"{session_id}.webm"
+        from app.services.s3 import s3_service
         
-        # Get the file stream from MinIO / S3
-        response = s3_internal.get_object(Bucket=settings.S3_BUCKET_NAME, Key=file_key)
-        
-        # Stream it back to the browser
-        return StreamingResponse(
-            response['Body'], 
-            media_type="video/webm",
-            headers={"Content-Disposition": f"inline; filename={file_key}"}
-        )
+        url = s3_service.generate_presigned_download_url(file_key)
+        if url:
+            from fastapi.responses import RedirectResponse
+            # Local Docker fix for browser redirects
+            url = url.replace("http://minio:9000", "http://localhost:9000")
+            url = url.replace("http://minio:9001", "http://localhost:9001")
+            return RedirectResponse(url)
+        else:
+            raise HTTPException(status_code=404, detail="Video not found")
+            
     except Exception as e:
         print(f"Video Stream Error: {e}")
         raise HTTPException(status_code=404, detail="Video not found")

@@ -8,6 +8,35 @@ import { api } from '@/services/api';
 import { useSpeechSynthesis, useAutoSpeak } from '@/hooks/useSpeechSynthesis';
 
 /**
+ * SUB-COMPONENT: RecordingTimer
+ * Isolates the intense 1-second state updates away from the Video element
+ * to prevent hardware acceleration compositor flickering.
+ */
+function RecordingTimer({ status }: { status: 'idle' | 'recording' | 'uploading' }) {
+  const [timer, setTimer] = useState(0);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (status === 'recording') {
+      interval = setInterval(() => {
+        setTimer((t) => t + 1);
+      }, 1000);
+    } else if (status === 'idle') {
+      setTimer(0);
+    }
+    return () => clearInterval(interval);
+  }, [status]);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  return <span className="text-xl font-mono font-medium text-foreground">{formatTime(timer)}</span>;
+}
+
+/**
  * SUB-COMPONENT: InternalRecorder
  * This component only renders once the library is loaded, 
  * satisfying the Rules of Hooks.
@@ -15,7 +44,6 @@ import { useSpeechSynthesis, useAutoSpeak } from '@/hooks/useSpeechSynthesis';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function InternalRecorder({ useRecorder, onUpload }: { useRecorder: any, onUpload: any }) {
   const [status, setStatus] = useState<'idle' | 'recording' | 'uploading'>('idle');
-  const [timer, setTimer] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const { startRecording, stopRecording, previewStream } = useRecorder({
@@ -29,29 +57,14 @@ function InternalRecorder({ useRecorder, onUpload }: { useRecorder: any, onUploa
   });
 
   useEffect(() => {
+    // Only set the srcObject if we don't already have the same stream to prevent flicker on every tick
     if (videoRef.current && previewStream) {
-      videoRef.current.srcObject = previewStream;
+      const currentStream = videoRef.current.srcObject as MediaStream;
+      if (!currentStream || currentStream.id !== previewStream.id) {
+        videoRef.current.srcObject = previewStream;
+      }
     }
   }, [previewStream]);
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (status === 'recording') {
-      interval = setInterval(() => {
-        setTimer((t) => t + 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [status]);
-
-  /**
-   * FORMAT: MM:SS
-   */
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-center py-12">
@@ -59,15 +72,34 @@ function InternalRecorder({ useRecorder, onUpload }: { useRecorder: any, onUploa
       {/* THE OBJECT: 1:1 MONITOR */}
       <div className="relative group">
         {/* BEZEL */}
-        <div className="w-[80vw] max-w-[600px] aspect-square bg-muted/30 border-[3px] border-border shadow-[0_20px_40px_-10px_rgba(0,0,0,0.1)] p-1 transition-all duration-500">
+        <div className="w-[85vw] max-w-[700px] aspect-[4/3] md:aspect-[16/9] bg-muted/10 border-[1px] border-border/50 rounded-2xl shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] p-2 backdrop-blur-xl transition-all duration-500 overflow-hidden relative">
 
           {/* SCREEN */}
-          <div className="w-full h-full bg-black relative overflow-hidden">
-            <video ref={videoRef} autoPlay muted className="w-full h-full object-contain" />
+          <div className="w-full h-full bg-black/90 rounded-xl relative overflow-hidden shadow-inner border border-white/5">
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              className={`w-full h-full object-cover transition-opacity duration-1000 ${previewStream ? 'opacity-100' : 'opacity-0'}`}
+            />
 
-            {/* RECORDING INDICATOR (PHYSICAL DOT) */}
+            {/* RECORDING OVERLAYS */}
             {status === 'recording' && (
-              <div className="absolute top-6 right-6 w-3 h-3 bg-red-600 rounded-full animate-pulse shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>
+              <>
+                <div className="absolute top-6 right-6 flex items-center gap-3 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-red-500/30">
+                  <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]"></div>
+                  <span className="font-mono text-xs text-red-50 font-bold tracking-widest uppercase">REC</span>
+                </div>
+              </>
+            )}
+
+            {/* IDLE OVERLAYS */}
+            {status === 'idle' && !previewStream && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
+                <VolumeX className="w-8 h-8 opacity-20 mb-4" />
+                <span className="font-mono text-xs uppercase tracking-widest opacity-40">Initializing Optics</span>
+              </div>
             )}
           </div>
 
@@ -77,7 +109,7 @@ function InternalRecorder({ useRecorder, onUpload }: { useRecorder: any, onUploa
         <div className="mt-6 flex justify-between items-center w-full px-2 max-w-[600px]">
           <div className="flex flex-col">
             <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground font-sans">Sequence</span>
-            <span className="text-xl font-mono font-medium text-foreground">{formatTime(timer)}</span>
+            <RecordingTimer status={status} />
           </div>
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${status === 'idle' ? 'bg-accent' : 'bg-border'}`}></div>
@@ -89,39 +121,43 @@ function InternalRecorder({ useRecorder, onUpload }: { useRecorder: any, onUploa
       </div>
 
       {/* CONTROLS: PHYSICAL INTERFACE */}
-      <div className="mt-16 flex items-center justify-center">
+      <div className="mt-12 flex items-center justify-center">
         {status === 'idle' ? (
           <button
             onClick={() => { startRecording(); setStatus('recording'); }}
             className="group relative flex flex-col items-center gap-4 focus:outline-none"
           >
-            {/* LARGE CLICKY BUTTON */}
-            <div className="w-20 h-20 rounded-full bg-surface border-2 border-border shadow-[0_5px_0_rgba(200,200,200,1)] hover:translate-y-[2px] hover:shadow-[0_3px_0_rgba(200,200,200,1)] active:translate-y-[5px] active:shadow-none transition-all flex items-center justify-center">
-              <div className="w-8 h-8 bg-red-600 rounded-full group-hover:scale-110 transition-transform"></div>
+            {/* RECORD BUTTON */}
+            <div className="w-24 h-24 rounded-full bg-surface border flex items-center justify-center shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] border-border hover:border-red-500/50">
+              <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center border border-border/50">
+                <div className="w-8 h-8 bg-red-500 rounded-full group-hover:scale-110 shadow-[0_0_15px_rgba(239,68,68,0.4)] transition-all"></div>
+              </div>
             </div>
-            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors font-sans">REC</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors font-sans">Initialize Capture</span>
           </button>
         ) : status === 'recording' ? (
           <button
             onClick={stopRecording}
             className="group relative flex flex-col items-center gap-4 focus:outline-none"
           >
-            {/* LARGE STOP BUTTON */}
-            <div className="w-20 h-20 rounded-full bg-surface border-2 border-border shadow-[0_5px_0_rgba(200,200,200,1)] hover:translate-y-[2px] hover:shadow-[0_3px_0_rgba(200,200,200,1)] active:translate-y-[5px] active:shadow-none transition-all flex items-center justify-center">
-              <div className="w-8 h-8 bg-foreground rounded-sm"></div>
+            {/* STOP BUTTON */}
+            <div className="w-24 h-24 rounded-full bg-surface border flex items-center justify-center shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] border-border hover:border-foreground/50">
+              <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center border border-border/50">
+                <div className="w-8 h-8 bg-foreground rounded-sm group-hover:scale-90 transition-all"></div>
+              </div>
             </div>
-            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors font-sans">STOP</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors font-sans">Conclude</span>
           </button>
         ) : null}
       </div>
 
       {/* LOADER OVERLAY */}
       {status === 'uploading' && (
-        <div className="fixed inset-0 bg-background/90 z-50 flex flex-col items-center justify-center">
-          <div className="w-16 h-1 bg-border overflow-hidden">
-            <div className="h-full bg-foreground animate-progress"></div>
+        <div className="fixed inset-0 bg-background/95 backdrop-blur-xl z-50 flex flex-col items-center justify-center">
+          <div className="w-32 h-1 bg-border rounded-full overflow-hidden relative">
+            <div className="absolute top-0 left-0 h-full bg-foreground animate-progress rounded-full w-1/2"></div>
           </div>
-          <p className="mt-4 font-mono text-sm uppercase tracking-widest text-muted-foreground">Archiving...</p>
+          <p className="mt-6 font-mono text-xs uppercase tracking-widest text-muted-foreground animate-pulse">Transmitting secure package...</p>
         </div>
       )}
 

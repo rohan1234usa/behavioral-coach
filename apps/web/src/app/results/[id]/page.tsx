@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { api, AnalysisData } from '@/services/api';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -35,6 +35,8 @@ export default function ResultPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const videoRef = useRef<HTMLVideoElement>(null);
+
   const [exporting, setExporting] = useState(false);
 
   const handleExportPDF = async () => {
@@ -54,6 +56,11 @@ export default function ResultPage() {
         logging: false,
         backgroundColor: '#ffffff',
         windowWidth: 800, // Match the component width
+        onclone: (clonedDoc) => {
+          // Ensure all SVGs and charts inside the cloned document are visible
+          const charts = clonedDoc.querySelectorAll('.recharts-wrapper');
+          charts.forEach(c => (c as HTMLElement).style.opacity = '1');
+        }
       });
 
       const imgData = canvas.toDataURL('image/jpeg', 0.85); // Use JPEG for smaller file size
@@ -140,9 +147,9 @@ export default function ResultPage() {
 
           {/* LEFT COLUMN: THE EVIDENCE (Video) */}
           <div className="lg:col-span-5 space-y-8">
-            <div className="stacked-card p-2">
-              <div className="aspect-video bg-muted/20 relative overflow-hidden">
-                <video id="session-video" controls className="w-full h-full object-cover" src={videoUrl}>
+            <div className="stacked-card p-3 bg-secondary/10 border-border/40 shadow-xl">
+              <div className="aspect-video bg-black rounded relative overflow-hidden group shadow-inner">
+                <video ref={videoRef} controls className="w-full h-full object-contain" src={videoUrl}>
                   Your browser does not support the video tag.
                 </video>
               </div>
@@ -155,10 +162,9 @@ export default function ResultPage() {
                         key={idx}
                         className="group flex gap-3 cursor-pointer p-2 hover:bg-muted/50 rounded transition-colors"
                         onClick={() => {
-                          const vid = document.getElementById('session-video') as HTMLVideoElement;
-                          if (vid) {
-                            vid.currentTime = seg.start;
-                            vid.play();
+                          if (videoRef.current) {
+                            videoRef.current.currentTime = seg.start;
+                            videoRef.current.play().catch(e => console.error("Playback failed", e));
                           }
                         }}
                       >
@@ -179,9 +185,11 @@ export default function ResultPage() {
               </div>
             </div>
 
-            <div className="stacked-card p-6">
-              <h3 className="text-sm font-sans font-bold uppercase tracking-widest text-foreground mb-4 border-b border-border pb-2">AI Summary</h3>
-              <p className="font-body text-base leading-relaxed text-foreground/80">
+            <div className="stacked-card p-8 bg-secondary/5 border-border/40 shadow-lg">
+              <h3 className="text-xs font-sans font-bold uppercase tracking-widest text-muted-foreground mb-6 border-b border-border/50 pb-3 flex items-center gap-2">
+                <FileText className="w-4 h-4" /> AI Executive Summary
+              </h3>
+              <p className="font-body text-base leading-relaxed text-foreground/90">
                 {data.summary || "Summary not available for this session."}
               </p>
             </div>
@@ -210,8 +218,8 @@ export default function ResultPage() {
               <div className="flex justify-between items-center mb-6 border-b border-border pb-2">
                 <h3 className="text-sm font-sans font-bold uppercase tracking-widest text-foreground">Emotional Amplitude</h3>
                 <div className="flex gap-4 text-xs font-mono">
-                  <span className="flex items-center gap-1"><div className="w-2 h-2 bg-foreground rounded-full"></div> Valence</span>
-                  <span className="flex items-center gap-1"><div className="w-2 h-2 bg-border rounded-full"></div> Arousal</span>
+                  <span className="flex items-center gap-1"><div className="w-2 h-2 bg-foreground rounded-full"></div> Tone</span>
+                  <span className="flex items-center gap-1"><div className="w-2 h-2 bg-border rounded-full"></div> Energy</span>
                 </div>
               </div>
 
@@ -225,8 +233,8 @@ export default function ResultPage() {
                       contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', fontFamily: 'var(--font-ibm)' }}
                       itemStyle={{ color: 'var(--foreground)' }}
                     />
-                    <Line type="step" dataKey="valence" className="stroke-foreground" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                    <Line type="monotone" dataKey="arousal" className="stroke-muted" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                    <Line type="step" dataKey="tone" className="stroke-foreground" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                    <Line type="monotone" dataKey="energy" className="stroke-muted" strokeWidth={2} strokeDasharray="5 5" dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -247,16 +255,17 @@ export default function ResultPage() {
 
             {/* EMOTIONAL SPIKES */}
             {data.metrics_data?.emotional_spikes && data.metrics_data.emotional_spikes.length > 0 && (
-              <div className="stacked-card p-6 mt-8">
-                <h3 className="text-sm font-sans font-bold uppercase tracking-widest text-foreground border-b border-border pb-2 mb-4">Emotional Highlights</h3>
+              <div className="stacked-card p-8 bg-secondary/5 border-border/40 shadow-lg">
+                <h3 className="text-xs font-sans font-bold uppercase tracking-widest text-muted-foreground mb-6 border-b border-border/50 pb-3 flex items-center gap-2">
+                  <AlertOctagon className="w-4 h-4" /> Emotional Highlights
+                </h3>
                 <div className="space-y-3">
                   {data.metrics_data.emotional_spikes.map((spike: any, idx: number) => (
                     <div key={idx} className="flex justify-between items-center p-3 bg-secondary/30 rounded border border-border/50 cursor-pointer hover:border-accent/50 transition-colors"
                       onClick={() => {
-                        const vid = document.getElementById('session-video') as HTMLVideoElement;
-                        if (vid) {
-                          vid.currentTime = spike.timestamp;
-                          vid.play();
+                        if (videoRef.current) {
+                          videoRef.current.currentTime = spike.timestamp;
+                          videoRef.current.play().catch(e => console.error("Playback failed", e));
                         }
                       }}>
                       <div className="flex items-center gap-3">
@@ -290,13 +299,14 @@ export default function ResultPage() {
 function ReportMetric({ label, value, status }: { label: string, value: number, status: 'optimal' | 'warning' | 'critical' }) {
   const percentage = Math.round((value || 0) * 100);
   const colorClass = status === 'optimal' ? 'text-accent' : status === 'warning' ? 'text-orange-500' : 'text-destructive';
+  const bgClass = status === 'optimal' ? 'bg-accent/10' : status === 'warning' ? 'bg-orange-500/10' : 'bg-destructive/10';
 
   return (
-    <div className="stacked-card p-6 flex flex-col gap-2">
+    <div className="stacked-card p-6 flex flex-col gap-3 bg-secondary/5 border-border/40 shadow-md hover:shadow-lg transition-shadow">
       <span className="text-xs font-sans font-bold uppercase tracking-widest text-muted-foreground">{label}</span>
-      <div className="flex items-baseline gap-2">
-        <span className="text-4xl font-mono font-medium text-foreground tracking-tighter">{percentage}%</span>
-        <span className={`text-xs font-bold uppercase ${colorClass}`}>{status}</span>
+      <div className="flex items-baseline gap-3">
+        <span className="text-4xl md:text-5xl font-mono font-medium text-foreground tracking-tighter">{percentage}%</span>
+        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${colorClass} ${bgClass}`}>{status}</span>
       </div>
     </div>
   );
@@ -305,11 +315,12 @@ function ReportMetric({ label, value, status }: { label: string, value: number, 
 function FeedbackItem({ type, text }: { type: 'positive' | 'negative' | 'neutral', text: string }) {
   const Icon = type === 'positive' ? CheckCircle2 : type === 'negative' ? AlertOctagon : Minus;
   const colorClass = type === 'positive' ? 'text-accent' : type === 'negative' ? 'text-destructive' : 'text-muted-foreground';
+  const borderColor = type === 'positive' ? 'border-accent/30' : type === 'negative' ? 'border-destructive/30' : 'border-border';
 
   return (
-    <div className="flex gap-4 items-start p-4 bg-secondary/20 border border-border/50 rounded-sm">
-      <Icon className={`w-5 h-5 flex-shrink-0 ${colorClass}`} />
-      <p className="text-sm font-body text-foreground leading-relaxed">{text}</p>
+    <div className={`flex gap-4 items-start p-5 bg-secondary/10 border-l-2 ${borderColor} shadow-sm`}>
+      <Icon className={`w-5 h-5 flex-shrink-0 mt-0.5 ${colorClass}`} />
+      <p className="text-sm font-body text-foreground/90 leading-relaxed">{text}</p>
     </div>
   );
 }
