@@ -8,11 +8,14 @@ import io
 
 router = APIRouter()
 
-# Internal S3 Client (Docker-to-Docker)
+# Internal S3 Client (Production-Ready)
+from app.core.config import settings
+
 s3_internal = boto3.client('s3',
-    endpoint_url="http://minio:9000",
-    aws_access_key_id="minioadmin",
-    aws_secret_access_key="minioadmin"
+    endpoint_url=settings.S3_ENDPOINT_URL if settings.S3_ENDPOINT_URL else None,
+    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+    region_name=settings.AWS_REGION
 )
 
 # 1. GET ALL SESSIONS (For Dashboard)
@@ -48,8 +51,8 @@ def stream_video(session_id: str):
     try:
         file_key = f"{session_id}.webm"
         
-        # Get the file stream from MinIO
-        response = s3_internal.get_object(Bucket="videos", Key=file_key)
+        # Get the file stream from MinIO / S3
+        response = s3_internal.get_object(Bucket=settings.S3_BUCKET_NAME, Key=file_key)
         
         # Stream it back to the browser
         return StreamingResponse(

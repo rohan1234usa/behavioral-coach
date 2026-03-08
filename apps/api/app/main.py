@@ -31,11 +31,14 @@ app.add_middleware(
 )
 
 # --- NEW: Internal S3 Proxy Client ---
-# This client lives inside Docker, so it can talk to MinIO perfectly.
+# Use settings for endpoint and credentials to support both local and production S3
+from app.core.config import settings
+
 s3_internal = boto3.client('s3',
-    endpoint_url="http://minio:9000",
-    aws_access_key_id="minioadmin",
-    aws_secret_access_key="minioadmin"
+    endpoint_url=settings.S3_ENDPOINT_URL if settings.S3_ENDPOINT_URL else None,
+    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+    region_name=settings.AWS_REGION
 )
 
 # --- NEW: Proxy Route ---
@@ -45,15 +48,15 @@ async def upload_video_proxy(session_id: str, file: UploadFile = File(...)):
     try:
         # 1. Ensure bucket exists (Internal check)
         try:
-            s3_internal.create_bucket(Bucket="videos")
+            s3_internal.create_bucket(Bucket=settings.S3_BUCKET_NAME)
         except:
             pass # Bucket likely exists
 
-        # 2. Upload the file directly to MinIO
+        # 2. Upload the file directly to MinIO/S3
         file_key = f"{session_id}.webm"
         s3_internal.upload_fileobj(
             file.file, 
-            "videos", 
+            settings.S3_BUCKET_NAME, 
             file_key,
             ExtraArgs={'ContentType': 'video/webm'}
         )

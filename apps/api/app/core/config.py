@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     # Imentiv AI
     IMENTIV_API_KEY: str = ""
 
+    # S3 Endpoint (Optional, for MinIO)
+    S3_ENDPOINT_URL: str = ""
+
     class Config:
         env_file = ".env"
         extra = "ignore"

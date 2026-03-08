@@ -12,10 +12,13 @@ import time
 # Restore standard logging/print for Docker
 router = APIRouter()
 
+from app.core.config import settings
+
 s3_internal = boto3.client('s3',
-    endpoint_url="http://minio:9000",
-    aws_access_key_id="minioadmin",
-    aws_secret_access_key="minioadmin"
+    endpoint_url=settings.S3_ENDPOINT_URL if settings.S3_ENDPOINT_URL else None,
+    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+    region_name=settings.AWS_REGION
 )
 
 
@@ -67,8 +70,8 @@ def run_real_pipeline(session_id: int):
     try:
         print(f"🚀 [SESSION {session_id}] Starting Analysis Pipeline (Official SDK)", flush=True)
         
-        # 1. Download video from MinIO
-        s3_internal.download_file("videos", f"{session_id}.webm", temp_file)
+        # 1. Download video from MinIO / S3
+        s3_internal.download_file(settings.S3_BUCKET_NAME, f"{session_id}.webm", temp_file)
         print(f"📥 Downloaded video from MinIO for session {session_id}", flush=True)
 
         # 2. Upload to Imentiv via official SDK
