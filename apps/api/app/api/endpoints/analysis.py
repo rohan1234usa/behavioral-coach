@@ -293,16 +293,42 @@ def run_real_pipeline(session_id: int):
 
         # -- Generate Dynamic Feedback --
         feedback_tips = []
-        if engagement > 0.8:
+
+        # 1. Pacing & Pauses (Clarity + Transcript)
+        avg_segment_duration = 0.0
+        if transcript_segments:
+            durations = [max(0, seg.get("end", 0) - seg.get("start", 0)) for seg in transcript_segments]
+            avg_segment_duration = sum(durations) / len(durations)
+
+        if clarity < 0.6 and avg_segment_duration > 6.0:
+            feedback_tips.append({"type": "neutral", "text": "Your delivery is slow. Make sure you aren't pausing too long between thoughts to maintain conversational momentum."})
+        elif clarity < 0.5:
+            feedback_tips.append({"type": "neutral", "text": "Consider slowing down or enunciating more clearly to improve articulation."})
+
+        # 2. Energy & Dominant Emotion (Engagement + Emotion)
+        low_energy_emotions = ["neutral", "sadness", "sad", "fear"]
+        if engagement < 0.5 and dominant_emotion in low_energy_emotions:
+            feedback_tips.append({"type": "negative", "text": "Your expression is very flat or nervous. In behavioral interviews, conveying passion for your work is critical—try smiling more or varying your pitch."})
+        elif engagement > 0.8:
             feedback_tips.append({"type": "positive", "text": "Excellent energy and variation throughout the response."})
-        if confidence > 0.8:
+
+        # 3. Composure (Resilience + Timeline Spikes)
+        has_negative_spike = any(pt["tone"] < 35 for pt in real_timeline)
+        ends_positive = False
+        if real_timeline:
+            ends_positive = real_timeline[-1]["tone"] >= 50
+            
+        if has_negative_spike and ends_positive:
+            feedback_tips.append({"type": "positive", "text": "Great job recovering! You showed a moment of stress mid-answer but managed to finish strong and composed."})
+        elif resilience < 0.6 and (dominant_emotion in ["fear", "sadness", "anger", "disgust"]):
+            feedback_tips.append({"type": "negative", "text": "You appeared visibly stressed. Take a deep breath before answering; silence is better than rushing nervously."})
+
+        # 4. Confidence & Positive Reinforcement
+        if confidence > 0.8 and dominant_emotion in ["joy", "happy"]:
+            feedback_tips.append({"type": "positive", "text": "Excellent confident delivery! Your positive demeanor makes your answer highly persuasive and engaging."})
+        elif confidence > 0.7:
             feedback_tips.append({"type": "positive", "text": "Demonstrated strong composure and confidence."})
-        if clarity < 0.5:
-            feedback_tips.append({"type": "neutral", "text": "Consider slowing down to improve clarity and articulation."})
-        if resilience < 0.6:
-            feedback_tips.append({"type": "negative", "text": "Detected signs of stress or hesitation. Try to maintain composure under pressure."})
-        if engagement < 0.4:
-            feedback_tips.append({"type": "negative", "text": "Vocal delivery was somewhat monotone. Try adding more expression."})
+
         if not feedback_tips:
             feedback_tips.append({"type": "positive", "text": "Good overall performance. Keep practicing to refine your delivery."})
 
