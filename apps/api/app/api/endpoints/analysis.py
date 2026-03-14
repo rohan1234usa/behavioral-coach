@@ -403,7 +403,7 @@ def get_confidence_score(db: Session = Depends(get_db)):
 
 
 @router.post("/{session_id}/trigger")
-async def trigger_analysis(session_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def trigger_analysis(session_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     db_session = db.query(UserSession).filter(UserSession.id == session_id).first()
     if not db_session:
         raise HTTPException(status_code=404, detail="Session not found")

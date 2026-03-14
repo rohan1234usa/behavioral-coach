@@ -40,7 +40,7 @@ except Exception:
 # --- Upload Proxy Route ---
 # The frontend uploads to here. This function forwards it to MinIO.
 @app.post("/api/sessions/{session_id}/upload")
-async def upload_video_proxy(session_id: str, file: UploadFile = File(...)):
+def upload_video_proxy(session_id: str, file: UploadFile = File(...)):
     try:
         file_key = f"{session_id}.webm"
         s3_service.s3_client.upload_fileobj(

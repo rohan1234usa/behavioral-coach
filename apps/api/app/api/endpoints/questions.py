@@ -1,4 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from typing import List, Optional
 from app.services.resume import ResumeService
 from app.services.genai import genai_service
@@ -24,5 +25,5 @@ async def generate_questions(
              # for now, we'll just log and proceed without resume context
              print(f"Resume parsing failed: {e}")
 
-    questions = genai_service.generate_questions(company, role, resume_text)
+    questions = await run_in_threadpool(genai_service.generate_questions, company, role, resume_text)
     return questions
