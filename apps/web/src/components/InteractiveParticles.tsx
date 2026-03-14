@@ -70,34 +70,56 @@ export default function InteractiveParticles({
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       particles.forEach(p => {
-        // Natural drift
+        // Natural drift if moving very slowly
+        if (Math.abs(p.vx) < 0.05 && Math.abs(p.vy) < 0.05) {
+          p.vx += (Math.random() - 0.5) * 0.1;
+          p.vy += (Math.random() - 0.5) * 0.1;
+        }
+
+        // Mouse interaction
+        if (mouse.x !== -1000) {
+          const dx = mouse.x - p.x;
+          const dy = mouse.y - p.y;
+          const distance = Math.sqrt(dx * dx + dy * dy) || 1; // Prevent div by 0
+          
+          if (mouse.isClicking) {
+            // GRAVITY WELL (Attract) - Much larger radius to pull them in
+            if (distance < mouse.radius * 4) {
+              const forceDirectionX = dx / distance;
+              const forceDirectionY = dy / distance;
+              // Stronger pull the further away they are within the radius (elastic feel)
+              const force = (distance / (mouse.radius * 4)) * 1.5;
+              
+              p.vx += forceDirectionX * force;
+              p.vy += forceDirectionY * force;
+            }
+          } else {
+            // REPULSION FIELD (Repel)
+            if (distance < mouse.radius) {
+              const forceDirectionX = dx / distance;
+              const forceDirectionY = dy / distance;
+              // Stronger push the closer they are
+              const force = (mouse.radius - distance) / mouse.radius;
+              
+              p.vx -= forceDirectionX * force * 2;
+              p.vy -= forceDirectionY * force * 2;
+            }
+          }
+        }
+
+        // Friction / Air Resistance
+        p.vx *= 0.92;
+        p.vy *= 0.92;
+
+        // Apply velocity to position
         p.x += p.vx;
         p.y += p.vy;
         
-        // Wrap around screen
+        // Wrap around screen smoothly
         if (p.x < 0) p.x = canvas.width;
         if (p.x > canvas.width) p.x = 0;
         if (p.y < 0) p.y = canvas.height;
         if (p.y > canvas.height) p.y = 0;
-        
-        // Mouse interaction
-        const dx = mouse.x - p.x;
-        const dy = mouse.y - p.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        // Repel radius increases significantly on click
-        const activeRadius = mouse.isClicking ? mouse.radius * 2.5 : mouse.radius;
-        
-        if (distance < activeRadius) {
-          // Calculate force (stronger closer to mouse)
-          const forceDirectionX = dx / distance;
-          const forceDirectionY = dy / distance;
-          const mapToRadius = (activeRadius - distance) / activeRadius; // 0 to 1
-          const force = mouse.isClicking ? mapToRadius * 15 : mapToRadius * 2;
-          
-          p.x -= forceDirectionX * force;
-          p.y -= forceDirectionY * force;
-        }
         
         // Draw
         ctx.beginPath();
