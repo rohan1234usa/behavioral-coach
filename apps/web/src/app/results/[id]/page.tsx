@@ -9,6 +9,7 @@ import Link from 'next/link';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import PDFReport from '@/components/PDFReport';
+import InteractiveParticles from '@/components/InteractiveParticles';
 import {
   ArrowLeft,
   FileText,
@@ -108,12 +109,10 @@ export default function ResultPage() {
   }, [id]);
 
   if (loading) return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-4 animate-pulse">
-        <div className="w-12 h-12 border-4 border-border border-t-foreground rounded-full animate-spin"></div>
-        <span className="font-sans font-medium text-sm text-muted-foreground">Compiling report...</span>
-      </div>
-    </div>
+    <InteractiveParticles 
+      text="Compiling Analysis Report..." 
+      subtext="Analyzing video cadence, tone, and emotions." 
+    />
   );
 
   if (!data) return <div className="p-8 text-destructive font-sans font-medium">Report Generation Failed</div>;

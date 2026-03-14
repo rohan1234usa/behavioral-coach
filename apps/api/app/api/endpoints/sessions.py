@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app.db.base import get_db
-from app.db.models import Session as SessionModel
+from app.db.models import Session as SessionModel, AnalysisResult
 from app.services.s3 import s3_service
 
 router = APIRouter()
@@ -10,8 +10,27 @@ router = APIRouter()
 # 1. GET ALL SESSIONS (For Dashboard)
 @router.get("/")
 def get_sessions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    # Fetch sessions sorted by newest first, with joined analysis
-    sessions = db.query(SessionModel).order_by(SessionModel.created_at.desc()).offset(skip).limit(limit).all()
+    # Fetch sessions sorted by newest first, joining analysis to avoid N+1,
+    # and only loading the columns we need to prevent pulling large JSON/Text fields.
+    sessions = (
+        db.query(
+            SessionModel.id,
+            SessionModel.question_text,
+            SessionModel.status,
+            SessionModel.created_at,
+            SessionModel.video_s3_key,
+            AnalysisResult.confidence_score,
+            AnalysisResult.engagement_score,
+            AnalysisResult.clarity_score,
+            AnalysisResult.resilience_score,
+            AnalysisResult.dominant_emotion,
+        )
+        .outerjoin(AnalysisResult, SessionModel.id == AnalysisResult.session_id)
+        .order_by(SessionModel.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
     
     # Get total count for stable indexing
     total_count = db.query(SessionModel).count()
@@ -25,11 +44,11 @@ def get_sessions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db))
             "created_at": s.created_at,
             "video_s3_key": s.video_s3_key,
             # Include summary scores from analysis if available
-            "confidence_score": s.analysis.confidence_score if s.analysis else None,
-            "engagement_score": s.analysis.engagement_score if s.analysis else None,
-            "clarity_score": s.analysis.clarity_score if s.analysis else None,
-            "resilience_score": s.analysis.resilience_score if s.analysis else None,
-            "dominant_emotion": s.analysis.dominant_emotion if s.analysis else None,
+            "confidence_score": s.confidence_score,
+            "engagement_score": s.engagement_score,
+            "clarity_score": s.clarity_score,
+            "resilience_score": s.resilience_score,
+            "dominant_emotion": s.dominant_emotion,
         }
         for i, s in enumerate(sessions)
     ]

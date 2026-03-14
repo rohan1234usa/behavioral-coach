@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSession, signIn } from 'next-auth/react';
 import { api } from '@/services/api';
 import ConfidenceGauge from '@/components/ConfidenceGauge';
+import InteractiveParticles from '@/components/InteractiveParticles';
 import { Square, ArrowUpRight, Grid, List, Lock } from 'lucide-react';
 import {
     ResponsiveContainer,
@@ -42,9 +43,9 @@ export default function Dashboard() {
     }, [status]);
 
     if (status === 'loading' || (status === 'authenticated' && loading)) return (
-        <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground font-sans uppercase tracking-[0.2em] text-xs">
-            Retrieving Archive...
-        </div>
+        <InteractiveParticles 
+            text="Retrieving Archive..." 
+        />
     );
 
     if (status === 'unauthenticated') return (
