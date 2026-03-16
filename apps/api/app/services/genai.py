@@ -125,7 +125,7 @@ class GenAIService:
         
         return self._get_fallback_questions(company)
 
-    async def generate_questions_stream(self, company: str, role: str, resume_text: str = ""):
+    async def generate_questions_stream(self, company: str, role: str, resume_text: str = "", focus_area: str = ""):
         """
         Generates 3 tailored behavioral interview questions, yielding chunks for a streaming response.
         """
@@ -139,6 +139,13 @@ class GenAIService:
         
         if resume_text:
             prompt += f"\n\nCANDIDATE RESUME CONTEXT:\n{resume_text[:4000]}\n\n"
+            
+        if focus_area:
+            prompt += f"""
+        COACHING FOCUS AREA:
+        The candidate has an identified weakness in: "{focus_area}".
+        You MUST ensure that at least one (if not more) of your questions directly tests this weakness to help them practice it.
+        """
             
         prompt += """
         
@@ -160,9 +167,9 @@ class GenAIService:
         print(f"DEBUG: Generating streaming questions for {company} - {role}")
         
         try:
-            # We use stream=True and generator pattern
-            response = self.model.generate_content(prompt, stream=True)
-            for chunk in response:
+            # We use stream=True and async generator pattern
+            response = await self.model.generate_content_async(prompt, stream=True)
+            async for chunk in response:
                 if chunk.text:
                     yield chunk.text
         except exceptions.ResourceExhausted:
@@ -177,5 +184,49 @@ class GenAIService:
             print(f"❌ GenAI Critical Error in stream: {e}")
             fallback = self._get_fallback_questions(company)
             yield "|||".join(fallback)
+
+    def generate_coaching_plan(self, role: str, company: str, session_data: str) -> dict:
+        """
+        Analyzes past interview sessions and generates a personalized coaching plan and industry benchmark.
+        """
+        prompt = f"""
+        You are an expert {company} technical recruiter and executive behavioral coach.
+        You are analyzing a candidate applying for the role of: {role} at {company}
+        
+        Below is a summary of their recent mock interview sessions, including their quantitative scores, AI feedback, and transcripts:
+        
+        {session_data}
+        
+        TASK:
+        1. Compare their performance to the standard industry benchmark for a {role} at {company}. Explain how they stack up. IMPORTANT: Frame this supportively and constructively. Treat 1 or 2 anomalous bad performances as outliers, not the rule. Look for their true potential and average baseline. Phrase critiques as "Growth Opportunities" to encourage and motivate them. Do not be overly critical.
+        2. Identify their single biggest "Core Growth Opportunity" across these sessions (Must be concisely 1-5 words max, e.g., "Clarity of Communication" or "Rambling under pressure"). Do not include headings or extra text.
+        3. Develop a 3-step actionable markdown plan to remediate this weakness. Ensure the tone of the plan is motivating, empowering, and focused on building confidence.
+        
+        Return ONLY a JSON object with exactly these three keys:
+        - "industry_benchmark_notes" (string, supportive overview of benchmark)
+        - "core_weakness" (string, 1-5 words max describing the growth opportunity)
+        - "action_plan" (string, formatted with markdown bullet points or steps)
+        """
+        
+        print(f"DEBUG: Generating coaching plan for {role}")
+        
+        try:
+            response = self.model.generate_content(prompt)
+            text_response = response.text.strip()
+            
+            # Cleanup if the model adds markdown code blocks
+            if text_response.startswith("```json"):
+                text_response = text_response[7:-3]
+            elif text_response.startswith("```"):
+                text_response = text_response[3:-3]
+                
+            return json.loads(text_response)
+        except Exception as e:
+            print(f"❌ GenAI Critical Error generating coaching plan: {e}")
+            return {
+                "industry_benchmark_notes": "Unable to generate benchmark at this time due to an AI service error.",
+                "core_weakness": "Needs Practice",
+                "action_plan": "1. Keep practicing questions in the Arena.\n2. Review your session transcripts.\n3. Focus on STAR method delivery."
+            }
 
 genai_service = GenAIService()

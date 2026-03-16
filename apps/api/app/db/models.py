@@ -45,3 +45,15 @@ class AnalysisResult(Base):
     metrics_data = Column(JSON)
     
     session = relationship("Session", back_populates="analysis")
+
+class CoachingPlan(Base):
+    __tablename__ = "coaching_plans"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True) # Optional in case we have no auth
+    target_role = Column(String)
+    
+    industry_benchmark_notes = Column(Text)
+    core_weakness = Column(String)
+    action_plan = Column(Text)
+    
+    created_at = Column(DateTime, server_default=func.now())

@@ -214,7 +214,10 @@ export default function ResultPage() {
                 { label: 'Resilience', value: data.resilience_score },
                 { label: 'Engagement', value: data.engagement_score },
               ].map(({ label, value }) => {
-                const pct = Math.round((value || 0) * 100);
+                let finalVal = typeof value === 'number' ? value : 0;
+                if (finalVal > 1) finalVal = finalVal / 100; // recover legacy un-bounded mock DB values
+                
+                const pct = Math.max(0, Math.min(100, Math.round(finalVal * 100)));
                 const status: 'optimal' | 'warning' | 'critical' =
                   pct >= 70 ? 'optimal' : pct >= 45 ? 'warning' : 'critical';
                 return <ReportMetric key={label} label={label} value={value} status={status} />;

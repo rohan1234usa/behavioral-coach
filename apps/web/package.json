@@ -20,6 +20,7 @@
     "next-auth": "^5.0.0-beta.30",
     "react": "19.2.1",
     "react-dom": "19.2.1",
+    "react-markdown": "^10.1.0",
     "react-media-recorder": "^1.7.2",
     "react-media-recorder-2": "^1.6.23",
     "recharts": "^3.5.1",

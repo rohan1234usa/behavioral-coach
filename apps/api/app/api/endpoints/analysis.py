@@ -1,9 +1,10 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.base import get_db, SessionLocal
-from app.db.models import Session as UserSession, AnalysisResult
+from app.db.models import Session as UserSession, AnalysisResult, CoachingPlan
 from app.clients.imentiv import get_imentiv_client
 from app.services.s3 import s3_service
+from app.services.genai import genai_service
 from app.core.config import settings
 import os
 import time
@@ -479,3 +480,89 @@ def get_analysis_result(session_id: int, db: Session = Depends(get_db)):
     }
     
     return {"status": session.status, "data": response_data}
+
+@router.get("/coaching")
+def get_coaching_plan(db: Session = Depends(get_db)):
+    """
+    Returns the user's most recent CoachingPlan to populate the dashboard.
+    """
+    plan = db.query(CoachingPlan).order_by(CoachingPlan.created_at.desc()).first()
+    if not plan:
+        return {"status": "none", "data": None}
+    
+    return {
+        "status": "success",
+        "data": {
+            "id": plan.id,
+            "target_role": plan.target_role,
+            "industry_benchmark_notes": plan.industry_benchmark_notes,
+            "core_weakness": plan.core_weakness,
+            "action_plan": plan.action_plan,
+            "created_at": plan.created_at
+        }
+    }
+
+from pydantic import BaseModel
+
+class CoachingPlanRequest(BaseModel):
+    target_role: str = ""
+    company: str = ""
+
+@router.post("/coaching/generate")
+def generate_coaching_plan(req: CoachingPlanRequest, db: Session = Depends(get_db)):
+    """
+    Analyzes the last 3-5 sessions, calls GenAI to benchmark and build an action plan.
+    """
+    # 1. Fetch recent completed sessions with analysis results using a JOIN to prevent N+1 queries
+    session_data = db.query(UserSession, AnalysisResult).join(
+        AnalysisResult, UserSession.id == AnalysisResult.session_id
+    ).filter(
+        UserSession.status == "completed"
+    ).order_by(UserSession.created_at.desc()).limit(5).all()
+    
+    if not session_data:
+        raise HTTPException(status_code=400, detail="Not enough completed sessions to analyze. Please complete at least one session.")
+    
+    # Try to grab the user's target role, default to Software Engineer if none
+    from app.db.models import User
+    user = db.query(User).first()
+    
+    # Use request inputs if provided, else fall back to user profile / defaults
+    target_role = req.target_role.strip() or (user.target_role if user and user.target_role else "Software Engineer")
+    target_company = req.company.strip() or "FAANG"
+    
+    # 2. Build the session_data context String
+    context_lines = []
+    for s, res in session_data:
+        metrics = res.metrics_data or {}
+        feedback = metrics.get("feedback_tips", [])
+        feedback_str = ", ".join([f["text"] for f in feedback])
+        
+        context_lines.append(f"--- Session ID: {s.id} ---")
+        context_lines.append(f"Date: {s.created_at}")
+        context_lines.append(f"Question Asked: {s.question_text}")
+        context_lines.append(f"Transcript Snippet: {res.transcript[:200]}...")
+        context_lines.append(f"Scores -> Confidence: {res.confidence_score:.2f}, Clarity: {res.clarity_score:.2f}, Resilience: {res.resilience_score:.2f}, Engagement: {res.engagement_score:.2f}")
+        context_lines.append(f"Dominant Emotion: {res.dominant_emotion}")
+        context_lines.append(f"AI Feedback Received: {feedback_str}")
+        context_lines.append("")
+        
+    session_context_str = "\n".join(context_lines)
+    if not session_context_str.strip():
+        raise HTTPException(status_code=400, detail="Could not compile session data for analysis.")
+
+    # 3. Call GenAI
+    ai_response = genai_service.generate_coaching_plan(role=target_role, company=target_company, session_data=session_context_str)
+    
+    # 4. Save to DB
+    new_plan = CoachingPlan(
+        target_role=target_role,
+        industry_benchmark_notes=ai_response.get("industry_benchmark_notes", "Benchmark unavailable."),
+        core_weakness=ai_response.get("core_weakness", "Unknown weakness"),
+        action_plan=ai_response.get("action_plan", "Practice more.")
+    )
+    db.add(new_plan)
+    db.commit()
+    db.refresh(new_plan)
+    
+    return {"status": "success", "plan_id": new_plan.id}

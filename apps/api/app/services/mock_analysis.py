@@ -18,11 +18,11 @@ async def run_mock_pipeline(session_id: int):
         # 1. Simulate Processing Delay
         await asyncio.sleep(3)
         
-        # 2. Generate Mock Metrics
-        confidence = random.uniform(65, 95)
-        clarity = random.uniform(70, 90)
-        resilience = random.uniform(50, 85)
-        engagement = random.uniform(60, 100)
+        # 2. Generate Mock Metrics (normalized to 0.0 - 1.0)
+        confidence = random.uniform(0.65, 0.95)
+        clarity = random.uniform(0.70, 0.90)
+        resilience = random.uniform(0.50, 0.85)
+        engagement = random.uniform(0.60, 1.00)
         
         # 3. Generate Timeline
         timeline = []

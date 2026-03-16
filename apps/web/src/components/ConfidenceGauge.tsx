@@ -28,7 +28,7 @@ export default function ConfidenceGauge() {
         },
         {
             name: 'Momentum',
-            value: (data.breakdown.momentum / 30) * 100, // Normalize 0-30 to 0-100 for the chart ring
+            value: (data.breakdown.recent_sessions / 5) * 100, // Sync ring scale with the /5 text display
             fill: '#f59e0b', // amber-500
         }
     ];

@@ -65,6 +65,15 @@ export interface ConfidenceData {
   message: string;
 }
 
+export interface CoachingPlanData {
+  id: number;
+  target_role: string;
+  industry_benchmark_notes: string;
+  core_weakness: string;
+  action_plan: string;
+  created_at: string;
+}
+
 export const api = {
   // 1. Get Presigned URL
   startSession: async (question: string, userEmail?: string | null, userName?: string | null): Promise<SessionInitResponse> => {
@@ -148,6 +157,21 @@ export const api = {
   // NEW: Get Confidence Score
   getConfidenceScore: async (): Promise<ConfidenceData> => {
     const res = await axios.get(`${API_BASE}/analysis/confidence`);
+    return res.data;
+  },
+
+  // NEW: Get Active Coaching Plan
+  getCoachingPlan: async (): Promise<{status: string, data: CoachingPlanData | null}> => {
+    const res = await axios.get(`${API_BASE}/analysis/coaching`);
+    return res.data;
+  },
+
+  // NEW: Generate New Coaching Plan
+  generateCoachingPlan: async (targetRole?: string, company?: string): Promise<{status: string, plan_id: number}> => {
+    const res = await axios.post(`${API_BASE}/analysis/coaching/generate`, {
+        target_role: targetRole || "",
+        company: company || ""
+    });
     return res.data;
   }
 };

@@ -3,10 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSession, signIn } from 'next-auth/react';
-import { api } from '@/services/api';
+import { api, CoachingPlanData } from '@/services/api';
 import ConfidenceGauge from '@/components/ConfidenceGauge';
 import InteractiveParticles from '@/components/InteractiveParticles';
-import { Square, ArrowUpRight, Grid, List, Lock } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import { Square, ArrowUpRight, Grid, List, Lock, Target, TrendingUp, Zap } from 'lucide-react';
 import {
     ResponsiveContainer,
     ScatterChart,
@@ -30,19 +31,46 @@ export default function Dashboard() {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [sessions, setSessions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [coachingPlan, setCoachingPlan] = useState<CoachingPlanData | null>(null);
+    const [generatingPlan, setGeneratingPlan] = useState(false);
+    const [mounted, setMounted] = useState(false);
+    
+    // Customization inputs
+    const [targetRole, setTargetRole] = useState("Software Engineer");
+    const [company, setCompany] = useState("FAANG");
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     useEffect(() => {
         if (status === 'authenticated') {
-            api.getSessions()
-                .then(data => setSessions(data))
-                .catch(err => console.error(err))
-                .finally(() => setLoading(false));
+            Promise.all([
+                api.getSessions().then(data => setSessions(data)),
+                api.getCoachingPlan().then(res => setCoachingPlan(res.data))
+            ])
+            .catch(err => console.error(err))
+            .finally(() => setLoading(false));
         } else if (status === 'unauthenticated') {
             setLoading(false);
         }
     }, [status]);
 
-    if (status === 'loading' || (status === 'authenticated' && loading)) return (
+    const handleGeneratePlan = async () => {
+        setGeneratingPlan(true);
+        try {
+            await api.generateCoachingPlan(targetRole, company);
+            const res = await api.getCoachingPlan();
+            setCoachingPlan(res.data);
+        } catch (err: any) {
+            console.error("Failed to generate plan:", err);
+            alert(err.response?.data?.detail || "Failed to generate plan. Ensure you have completed at least one session.");
+        } finally {
+            setGeneratingPlan(false);
+        }
+    };
+
+    if (!mounted || status === 'loading' || (status === 'authenticated' && loading)) return (
         <InteractiveParticles 
             text="Retrieving Archive..." 
         />
@@ -96,14 +124,21 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
                 {(['confidence', 'clarity', 'resilience', 'engagement'] as const).map((metric) => {
                     const completed = sessions.filter(s => s.status === 'completed' && s[`${metric}_score`] != null);
-                    const avg = completed.length > 0
-                        ? Math.round(completed.reduce((sum: number, s: any) => sum + s[`${metric}_score`] * 100, 0) / completed.length)
+                    const avgRaw = completed.length > 0
+                        ? (completed.reduce((sum: number, s: any) => {
+                            let val = typeof s[`${metric}_score`] === 'number' ? s[`${metric}_score`] : 0;
+                            if (val > 1) val = val / 100; // Recover legacy unbounded
+                            return sum + val;
+                        }, 0) / completed.length)
                         : null;
-                    const dotData = completed.map((s: any, i: number) => ({
-                        x: i,
-                        y: Math.round(s[`${metric}_score`] * 100),
-                        z: 1
-                    }));
+                        
+                    const avg = avgRaw !== null ? Math.max(0, Math.min(100, Math.round(avgRaw * 100))) : null;
+                    
+                    const dotData = completed.map((s: any, i: number) => {
+                        let val = typeof s[`${metric}_score`] === 'number' ? s[`${metric}_score`] : 0;
+                        if (val > 1) val = val / 100;
+                        return { x: i, y: Math.max(0, Math.min(100, Math.round(val * 100))), z: 1 };
+                    });
                     return (
                         <MetricCard
                             key={metric}
@@ -114,6 +149,119 @@ export default function Dashboard() {
                         />
                     );
                 })}
+            </div>
+
+            {/* AI COACHING & BENCHMARKING SECTION */}
+            <div className="mb-16">
+                <div className="flex justify-between items-end mb-6">
+                    <div>
+                        <h2 className="text-2xl font-sans font-bold uppercase tracking-tight flex items-center gap-2">
+                            <Target className="w-6 h-6 text-accent" /> AI Coaching & Benchmark
+                        </h2>
+                        <p className="text-sm text-muted-foreground font-mono mt-2">
+                            Curriculum automatically targets your identified weaknesses in future Arena sessions.
+                        </p>
+                    </div>
+                    {!coachingPlan && !generatingPlan && sessions.filter(s => s.status === 'completed').length > 0 && (
+                        <div className="flex flex-col gap-3 items-end">
+                            <div className="flex gap-4 text-xs font-mono text-muted-foreground mr-1">
+                                <label className="flex items-center gap-2">
+                                    Role: <input type="text" value={targetRole} onChange={(e) => setTargetRole(e.target.value)} placeholder="Software Engineer" className="bg-surface border border-border px-2 py-1 rounded text-foreground w-40" />
+                                </label>
+                                <label className="flex items-center gap-2">
+                                    Company: <input type="text" value={company} onChange={(e) => setCompany(e.target.value)} placeholder="FAANG" className="bg-surface border border-border px-2 py-1 rounded text-foreground w-32" />
+                                </label>
+                            </div>
+                            <button 
+                                onClick={handleGeneratePlan}
+                                className="bg-accent text-background px-4 py-2 font-bold font-sans text-sm uppercase tracking-widest hover:opacity-90 transition-opacity"
+                            >
+                                Analyze History & Generate Plan
+                            </button>
+                        </div>
+                    )}
+                    {coachingPlan && !generatingPlan && (
+                        <div className="flex flex-col gap-3 items-end">
+                            <div className="flex gap-4 text-xs font-mono text-muted-foreground mr-1">
+                                <label className="flex items-center gap-2">
+                                    Role: <input type="text" value={targetRole} onChange={(e) => setTargetRole(e.target.value)} placeholder="Software Engineer" className="bg-surface border border-border px-2 py-1 rounded text-foreground w-40" />
+                                </label>
+                                <label className="flex items-center gap-2">
+                                    Company: <input type="text" value={company} onChange={(e) => setCompany(e.target.value)} placeholder="FAANG" className="bg-surface border border-border px-2 py-1 rounded text-foreground w-32" />
+                                </label>
+                            </div>
+                            <button 
+                                onClick={handleGeneratePlan}
+                                className="text-xs font-mono text-muted-foreground hover:text-foreground border border-border px-3 py-1 bg-surface hover:bg-secondary transition-colors w-full"
+                            >
+                                Regenerate Plan
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {generatingPlan && (
+                    <div className="stacked-card p-12 flex flex-col items-center justify-center gap-4 text-center">
+                        <InteractiveParticles text="Simulating FAANG Benchmark..." subtext="Analyzing your historical metrics and generating a targeted action plan." />
+                    </div>
+                )}
+
+                {!generatingPlan && coachingPlan && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Industry Benchmark */}
+                        <div className="stacked-card p-6 bg-surface shadow-sm hover:shadow-md transition-shadow">
+                            <h3 className="text-sm font-sans font-bold uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2 border-b border-border pb-2">
+                                <TrendingUp className="w-4 h-4 text-primary" /> Industry Benchmark
+                            </h3>
+                            <div className="font-mono text-xs uppercase tracking-widest text-accent mb-3 bg-accent/10 inline-block px-2 py-1">Target Role: {coachingPlan.target_role}</div>
+                            <p className="font-body text-sm leading-relaxed text-foreground/90">
+                                {coachingPlan.industry_benchmark_notes}
+                            </p>
+                        </div>
+
+                        {/* Identified Weakness & Action Plan */}
+                        <div className="stacked-card p-6 border border-accent/30 bg-accent/5 hover:border-accent transition-colors">
+                            <h3 className="text-sm font-sans font-bold uppercase tracking-widest text-accent mb-4 flex items-center gap-2 border-b border-accent/20 pb-2">
+                                <Zap className="w-4 h-4" /> Core Weakness & Action Plan
+                            </h3>
+                            <div className="mb-4">
+                                <span className="font-sans font-semibold text-sm text-foreground">Identified Weakness: </span>
+                                <span className="font-mono text-sm text-destructive capitalize">
+                                    {coachingPlan.core_weakness.replace(/^(Identified Weakness:\s*|Weakness:\s*|\*+|\#+)/ig, '').trim()}
+                                </span>
+                            </div>
+                            <div className="text-foreground/90">
+                                <ReactMarkdown
+                                    components={{
+                                        h1: ({node, ...props}) => <h1 className="text-xl font-bold font-sans text-foreground mt-4 mb-2" {...props} />,
+                                        h2: ({node, ...props}) => <h2 className="text-lg font-bold font-sans text-foreground mt-4 mb-2" {...props} />,
+                                        h3: ({node, ...props}) => <h3 className="text-md font-bold font-sans text-foreground mt-3 mb-2" {...props} />,
+                                        p: ({node, ...props}) => <p className="mb-3 text-sm font-body leading-relaxed" {...props} />,
+                                        ul: ({node, ...props}) => <ul className="list-none pl-0 mb-4 space-y-3" {...props} />,
+                                        ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-4 space-y-3 text-sm font-body text-muted-foreground" {...props} />,
+                                        li: ({node, ...props}) => (
+                                            <li className="text-sm font-body text-muted-foreground flex items-start gap-2 relative" {...props}>
+                                                <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0 mt-1.5" />
+                                                <div>{props.children}</div>
+                                            </li>
+                                        ),
+                                        strong: ({node, ...props}) => <strong className="font-semibold font-sans text-foreground" {...props} />,
+                                    }}
+                                >
+                                    {coachingPlan.action_plan}
+                                </ReactMarkdown>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {!generatingPlan && !coachingPlan && sessions.filter(s => s.status === 'completed').length === 0 && (
+                     <div className="stacked-card p-8 border border-border border-dashed flex items-center justify-center text-center bg-secondary/20">
+                     <p className="text-muted-foreground font-mono text-sm">
+                         Complete at least one interview session in the Arena to unlock AI Coaching & Benchmarking.
+                     </p>
+                 </div>
+                )}
             </div>
 
             {/* INDEX TABLE */}
