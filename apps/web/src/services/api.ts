@@ -110,7 +110,7 @@ export const api = {
     return res.data; // Returns { status: "processing" | "completed", data: ... }
   },
 
-  // NEW: Generate Questions
+  // NEW: Generate Questions (Non-Streaming - kept for backwards compatibility if needed)
   generateQuestions: async (company: string, role: string, resumeFile?: File): Promise<string[]> => {
     const formData = new FormData();
     formData.append('company', company);
@@ -120,6 +120,29 @@ export const api = {
     }
     const res = await axios.post(`${API_BASE}/questions/generate`, formData);
     return res.data;
+  },
+
+  // NEW: Generate Questions (Streaming)
+  generateQuestionsStream: async (company: string, role: string, resumeFile?: File): Promise<ReadableStream<Uint8Array> | null> => {
+    const formData = new FormData();
+    formData.append('company', company);
+    formData.append('role', role);
+    if (resumeFile) {
+      formData.append('resume', resumeFile);
+    }
+    
+    // We use native fetch here because Axios does not natively stream responses in the browser
+    // without advanced adapter configurations.
+    const res = await fetch(`${API_BASE}/questions/generate`, {
+        method: 'POST',
+        body: formData,
+    });
+    
+    if (!res.ok) {
+        throw new Error(`Failed to generate questions: ${res.statusText}`);
+    }
+
+    return res.body; 
   },
 
   // NEW: Get Confidence Score

@@ -20,6 +20,7 @@ export default function QuestionSetup({ onQuestionSelected }: QuestionSetupProps
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedQuestions, setGeneratedQuestions] = useState<string[]>([]);
     const [selectedAiQuestion, setSelectedAiQuestion] = useState<string | null>(null);
+    const [streamedText, setStreamedText] = useState<string>('');
 
     // Speech synthesis for question preview
     const { speak, stop, isSpeaking, isSupported } = useSpeechSynthesis();
@@ -52,12 +53,37 @@ export default function QuestionSetup({ onQuestionSelected }: QuestionSetupProps
             return;
         }
         setIsGenerating(true);
+        setGeneratedQuestions([]);
+        setSelectedAiQuestion(null);
+        setStreamedText('');
+        
         try {
-            const questions = await api.generateQuestions(company, role, resume || undefined);
-            setGeneratedQuestions(questions);
+            const stream = await api.generateQuestionsStream(company, role, resume || undefined);
+            if (!stream) throw new Error("No stream returned");
+
+            const reader = stream.getReader();
+            const decoder = new TextDecoder();
+            let accumulatedText = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                accumulatedText += chunk;
+                setStreamedText(accumulatedText);
+            }
+            
+            // Finished streaming. Split by the target delimiter
+            const rawQuestions = accumulatedText.split('|||');
+            const cleanQuestions = rawQuestions
+                .map(q => q.trim())
+                .filter(q => q.length > 0);
+                
+            setGeneratedQuestions(cleanQuestions);
         } catch (e) {
             console.error(e);
-            alert("Failed to generate questions.");
+            alert("Failed to generate questions. Please try again.");
         } finally {
             setIsGenerating(false);
         }
@@ -155,16 +181,24 @@ export default function QuestionSetup({ onQuestionSelected }: QuestionSetupProps
                             />
                         </div>
 
-                        {/* GENERATE BUTTON */}
-                        {generatedQuestions.length === 0 && (
+                        {/* GENERATE BUTTON & STREAMING UI */}
+                        {!isGenerating && generatedQuestions.length === 0 && (
                             <button
                                 onClick={handleGenerate}
-                                disabled={isGenerating}
-                                className="w-full bg-secondary border-2 border-border py-3 text-foreground font-bold uppercase tracking-widest hover:bg-secondary/70 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                className="w-full bg-secondary border-2 border-border py-3 text-foreground font-bold uppercase tracking-widest hover:bg-secondary/70 transition-colors flex items-center justify-center gap-2"
                             >
-                                {isGenerating ? <Loader2 className="animate-spin w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
-                                {isGenerating ? 'Analyzing Context...' : 'Generate Questions'}
+                                <Sparkles className="w-5 h-5" />
+                                Generate Questions
                             </button>
+                        )}
+                        
+                        {isGenerating && (
+                           <div className="w-full bg-secondary/30 border-2 border-dashed border-border p-6 font-mono text-sm text-muted-foreground animate-pulse">
+                                <div className="flex items-center gap-2 mb-2 text-accent font-bold uppercase tracking-widest text-xs">
+                                     <Loader2 className="animate-spin w-4 h-4" /> Synthesizing context...
+                                </div>
+                                <div className="whitespace-pre-wrap">{streamedText}</div>
+                           </div>
                         )}
 
                         {/* RESULTS */}

@@ -79,7 +79,11 @@ class GenAIService:
         2.  Reference specific projects/tech from the resume (e.g. "In your Imentiv project...").
         3.  Focus on "How" and "Why" behavioral traits (Conflict, Trade-offs, Leadership).
         4.  Direct and punchy tone, like a senior FAANG interviewer.
-        5.  Return ONLY a JSON array of strings. Example: ["Question 1?", "Question 2?", "Question 3?"]
+        5.  The 3 questions MUST be highly distinct and cover different behavioral traits. Do not ask 3 variations of the same underlying topic.
+        6.  Return ONLY the 3 questions separated by a `|||` delimiter. No numbering, no newlines between items, no JSON.
+        
+        Example Output Format:
+        Tell me about a time you handled ambiguity.|||Describe a technical trade-off you made.|||How do you resolve conflicts with teammates?
         """
 
         max_retries = 3
@@ -120,5 +124,58 @@ class GenAIService:
                 return self._get_fallback_questions(company)
         
         return self._get_fallback_questions(company)
+
+    async def generate_questions_stream(self, company: str, role: str, resume_text: str = ""):
+        """
+        Generates 3 tailored behavioral interview questions, yielding chunks for a streaming response.
+        """
+        prompt = f"""
+        You are an expert technical interviewer. 
+        Generate 3 challenging behavioral interview questions for a candidate applying to:
+        
+        Company: {company}
+        Role: {role}
+        """
+        
+        if resume_text:
+            prompt += f"\n\nCANDIDATE RESUME CONTEXT:\n{resume_text[:4000]}\n\n"
+            
+        prompt += """
+        
+        TASK:
+        Generate 3 highly specific, challenging behavioral interview questions based on the candidate's resume and the target role.
+        
+        RULES:
+        1.  **Keep questions CONCISE (max 2 sentences).** Do not ramble.
+        2.  Reference specific projects/tech from the resume (e.g. "In your Imentiv project...").
+        3.  Focus on "How" and "Why" behavioral traits (Conflict, Trade-offs, Leadership).
+        4.  Direct and punchy tone, like a senior FAANG interviewer.
+        5.  The 3 questions MUST be highly distinct and cover different behavioral traits. Do not ask 3 variations of the same underlying topic.
+        6.  Return ONLY the 3 questions separated by a `|||` delimiter. No numbering, no JSON.
+        
+        Example Output Format:
+        Tell me about a time you handled ambiguity.|||Describe a technical trade-off you made.|||How do you resolve conflicts with teammates?
+        """
+
+        print(f"DEBUG: Generating streaming questions for {company} - {role}")
+        
+        try:
+            # We use stream=True and generator pattern
+            response = self.model.generate_content(prompt, stream=True)
+            for chunk in response:
+                if chunk.text:
+                    yield chunk.text
+        except exceptions.ResourceExhausted:
+            print(f"⚠️ Quota exceeded during stream.")
+            fallback = self._get_fallback_questions(company)
+            yield "|||".join(fallback)
+        except ValueError as e:
+            print(f"⚠️ Safety Block Triggered in stream: {e}")
+            fallback = self._get_fallback_questions(company)
+            yield "|||".join(fallback)
+        except Exception as e:
+            print(f"❌ GenAI Critical Error in stream: {e}")
+            fallback = self._get_fallback_questions(company)
+            yield "|||".join(fallback)
 
 genai_service = GenAIService()
