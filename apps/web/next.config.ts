@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
-const STORAGE_URL = process.env.NEXT_PUBLIC_STORAGE_URL || 'http://127.0.0.1:9000';
+const BACKEND_URL = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000').replace(/\/$/, '').replace(/\/api$/, '');
+const STORAGE_URL = (process.env.NEXT_PUBLIC_STORAGE_URL || 'http://127.0.0.1:9000').replace(/\/$/, '');
 
 const nextConfig: NextConfig = {
   // This Rewrite Rule acts as a Reverse Proxy

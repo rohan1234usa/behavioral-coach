@@ -8,9 +8,7 @@ import {
     Line,
     XAxis,
     YAxis,
-    CartesianGrid,
-    AreaChart,
-    Area
+    CartesianGrid
 } from 'recharts';
 
 interface PDFReportProps {
@@ -81,7 +79,7 @@ const PDFReport: React.FC<PDFReportProps> = ({ data, sessionId }) => {
             <div className="mb-12">
                 <h2 className="text-sm font-bold uppercase tracking-widest pb-2 mb-4" style={{ borderBottom: `1px solid ${colors.slate200}` }}>Executive Summary</h2>
                 <p className="text-lg leading-relaxed italic" style={{ color: colors.slate700 }}>
-                    "{data.summary || 'No summary available for this session.'}"
+                    &quot;{data.summary || 'No summary available for this session.'}&quot;
                 </p>
             </div>
 
@@ -137,7 +135,7 @@ const PDFReport: React.FC<PDFReportProps> = ({ data, sessionId }) => {
                     <h2 className="text-sm font-bold uppercase tracking-widest pb-2 mb-4" style={{ borderBottom: `1px solid ${colors.slate200}` }}>Session Transcript</h2>
                     <div className="space-y-3">
                         {data.metrics_data?.transcript_segments && data.metrics_data.transcript_segments.length > 0 ? (
-                            data.metrics_data.transcript_segments.map((seg: any, idx: number) => (
+                            data.metrics_data.transcript_segments.map((seg, idx) => (
                                 <div key={idx} className="flex gap-3">
                                     <span className="text-[10px] font-mono mt-0.5" style={{ color: colors.slate400 }}>
                                         {new Date(seg.start * 1000).toISOString().substr(14, 5)}
@@ -156,7 +154,7 @@ const PDFReport: React.FC<PDFReportProps> = ({ data, sessionId }) => {
                     <h2 className="text-sm font-bold uppercase tracking-widest pb-2 mb-4" style={{ borderBottom: `1px solid ${colors.slate200}` }}>Emotional Highlights</h2>
                     <div className="space-y-3">
                         {data.metrics_data?.emotional_spikes && data.metrics_data.emotional_spikes.length > 0 ? (
-                            data.metrics_data.emotional_spikes.map((spike: any, idx: number) => (
+                            data.metrics_data.emotional_spikes.map((spike, idx) => (
                                 <div key={idx} className="flex justify-between items-center p-3 rounded" style={{ backgroundColor: colors.slate50, border: `1px solid ${colors.slate200}` }}>
                                     <div className="flex items-center gap-2">
                                         <span className="text-[10px] font-mono px-1 rounded" style={{ backgroundColor: colors.white, border: `1px solid ${colors.slate200}` }}>

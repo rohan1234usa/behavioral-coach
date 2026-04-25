@@ -1,7 +1,9 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 import os
+import tempfile
 
 # FORCE LOCAL SQLITE only if DATABASE_URL is not set (i.e. running locally without docker-compose)
 if not os.getenv("DATABASE_URL"):
@@ -9,7 +11,8 @@ if not os.getenv("DATABASE_URL"):
 load_dotenv()  # Ensure other env vars are loaded
 
 from app.api.endpoints import analysis, upload, sessions
-from app.db.base import Base, engine
+from app.db.base import Base, engine, get_db
+from app.db.models import Session as UserSession
 from app.services.s3 import s3_service
 from app.core.config import settings
 
@@ -18,14 +21,12 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Behavioural Coach API")
 
+frontend_origins = [origin.strip() for origin in settings.FRONTEND_ORIGINS.split(",") if origin.strip()]
+
 # Allow Frontend access
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://behavioral-interview-coach.vercel.app",
-    ], 
+    allow_origins=frontend_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -40,21 +41,45 @@ except Exception:
 # --- Upload Proxy Route ---
 # The frontend uploads to here. This function forwards it to MinIO.
 @app.post("/api/sessions/{session_id}/upload")
-def upload_video_proxy(session_id: str, file: UploadFile = File(...)):
+def upload_video_proxy(session_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    db_session = db.query(UserSession).filter(UserSession.id == session_id).first()
+    if not db_session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if file.content_type != "video/webm":
+        raise HTTPException(status_code=400, detail="Only WebM video uploads are supported")
+
+    bytes_written = 0
+    temp_path = None
     try:
         file_key = f"{session_id}.webm"
-        s3_service.s3_client.upload_fileobj(
-            file.file, 
-            settings.S3_BUCKET_NAME, 
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as temp_file:
+            temp_path = temp_file.name
+            while chunk := file.file.read(1024 * 1024):
+                bytes_written += len(chunk)
+                if bytes_written > settings.MAX_VIDEO_UPLOAD_BYTES:
+                    raise HTTPException(status_code=413, detail="Video upload is too large")
+                temp_file.write(chunk)
+
+        s3_service.s3_client.upload_file(
+            temp_path,
+            settings.S3_BUCKET_NAME,
             file_key,
             ExtraArgs={'ContentType': 'video/webm'}
         )
-        
+
+        db_session.status = "uploaded"
+        db.commit()
         print(f"✅ Successfully proxied upload for session: {session_id}")
         return {"status": "success", "key": file_key}
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"❌ Proxy Upload Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        db.rollback()
+        print(f"❌ Proxy Upload Error for session {session_id}: {e}")
+        raise HTTPException(status_code=500, detail="Upload failed")
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
 
 
 # Existing Routes

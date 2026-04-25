@@ -1,9 +1,7 @@
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { api, AnalysisData } from '@/services/api';
+import { api, type AnalysisData } from '@/services/api';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import jsPDF from 'jspdf';
@@ -31,9 +29,14 @@ import {
   Tooltip
 } from 'recharts';
 
+type ResultResponse = {
+  status: string;
+  data: AnalysisData | null;
+};
+
 export default function ResultPage() {
   const { id } = useParams();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<AnalysisData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -91,7 +94,7 @@ export default function ResultPage() {
         return;
       }
       try {
-        const result = await api.getResults(id as string);
+        const result = await api.getResults(id as string) as ResultResponse;
         if (result.status === 'completed' && result.data) {
           setData(result.data);
           setLoading(false);
@@ -101,7 +104,7 @@ export default function ResultPage() {
           setData(null);
           clearInterval(interval);
         }
-      } catch (e) {
+      } catch {
         // Network error — keep trying
       }
     }, 2000);
@@ -165,7 +168,7 @@ export default function ResultPage() {
                 <h3 className="text-sm font-sans font-semibold text-foreground mb-4 sticky top-0 bg-surface/90 py-1 backdrop-blur-sm">Interactive Transcript</h3>
                 {data.metrics_data?.transcript_segments && data.metrics_data.transcript_segments.length > 0 ? (
                   <div className="space-y-3">
-                    {data.metrics_data.transcript_segments.map((seg: any, idx: number) => (
+                    {data.metrics_data.transcript_segments.map((seg, idx) => (
                       <div
                         key={idx}
                         className="group flex gap-3 cursor-pointer p-2 hover:bg-muted/50 rounded-lg transition-colors"
@@ -177,7 +180,7 @@ export default function ResultPage() {
                         }}
                       >
                         <span className="text-xs font-mono text-muted-foreground mt-1 whitespace-nowrap opacity-70 group-hover:opacity-100">
-                          {new Date(seg.start * 1000).toISOString().substr(14, 5)}
+                          {new Date(seg.start * 1000).toISOString().substring(14, 19)}
                         </span>
                         <p className="font-body text-sm leading-relaxed text-foreground/90">
                           {seg.text}
@@ -187,7 +190,7 @@ export default function ResultPage() {
                   </div>
                 ) : (
                   <p className="font-body text-sm leading-relaxed text-muted-foreground italic">
-                    "{data.transcript ? data.transcript.substring(0, 150) + "..." : "No transcript available yet."}"
+                    &quot;{data.transcript ? data.transcript.substring(0, 150) + "..." : "No transcript available yet."}&quot;
                   </p>
                 )}
               </div>
@@ -256,7 +259,7 @@ export default function ResultPage() {
               <h3 className="text-sm font-sans font-semibold text-foreground border-b border-border pb-2">Coach feedback</h3>
 
               {data.metrics_data?.feedback_tips && data.metrics_data.feedback_tips.length > 0 ? (
-                data.metrics_data.feedback_tips.map((tip: any, index: number) => (
+                data.metrics_data.feedback_tips.map((tip, index) => (
                   <FeedbackItem key={index} type={tip.type} text={tip.text} />
                 ))
               ) : (
@@ -271,7 +274,7 @@ export default function ResultPage() {
                   <AlertOctagon className="w-4 h-4 text-orange-500" /> Emotional Highlights
                 </h3>
                 <div className="space-y-3">
-                  {data.metrics_data.emotional_spikes.map((spike: any, idx: number) => (
+                  {data.metrics_data.emotional_spikes.map((spike, idx) => (
                     <div key={idx} className="flex justify-between items-center p-3 bg-secondary/50 rounded-lg border border-border cursor-pointer hover:border-accent/50 transition-colors"
                       onClick={() => {
                         if (videoRef.current) {
@@ -281,7 +284,7 @@ export default function ResultPage() {
                       }}>
                       <div className="flex items-center gap-3">
                         <span className="text-xs font-mono text-muted-foreground bg-background px-2 py-1 rounded">
-                          {new Date(spike.timestamp * 1000).toISOString().substr(14, 5)}
+                          {new Date(spike.timestamp * 1000).toISOString().substring(14, 19)}
                         </span>
                         <span className="text-sm font-body font-medium text-foreground">{spike.type}</span>
                       </div>

@@ -11,11 +11,40 @@ interface VoiceOption {
     voiceURI: string;
 }
 
+type SavedVoiceSettings = {
+    selectedVoice: string;
+    voiceSpeed: number;
+    autoReadQuestions: boolean;
+};
+
+const loadSavedVoiceSettings = (): SavedVoiceSettings => {
+    if (typeof window === 'undefined') {
+        return { selectedVoice: '', voiceSpeed: 1, autoReadQuestions: false };
+    }
+
+    try {
+        const savedSettings = localStorage.getItem('coachSettings');
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            return {
+                selectedVoice: settings.selectedVoice || '',
+                voiceSpeed: settings.voiceSpeed || 1,
+                autoReadQuestions: settings.autoReadQuestions ?? false,
+            };
+        }
+    } catch (e) {
+        console.warn('Failed to parse settings', e);
+    }
+
+    return { selectedVoice: '', voiceSpeed: 1, autoReadQuestions: false };
+};
+
 export default function SettingsPage() {
     const { theme, setTheme, resolvedTheme } = useTheme();
-    const [selectedVoice, setSelectedVoice] = useState<string>('');
-    const [voiceSpeed, setVoiceSpeed] = useState<number>(1);
-    const [autoReadQuestions, setAutoReadQuestions] = useState<boolean>(false);
+    const [savedVoiceSettings] = useState(loadSavedVoiceSettings);
+    const [selectedVoice, setSelectedVoice] = useState<string>(savedVoiceSettings.selectedVoice);
+    const [voiceSpeed, setVoiceSpeed] = useState<number>(savedVoiceSettings.voiceSpeed);
+    const [autoReadQuestions, setAutoReadQuestions] = useState<boolean>(savedVoiceSettings.autoReadQuestions);
     const [availableVoices, setAvailableVoices] = useState<VoiceOption[]>([]);
     const [isSpeaking, setIsSpeaking] = useState(false);
 
@@ -68,24 +97,6 @@ export default function SettingsPage() {
         if (typeof window !== 'undefined' && window.speechSynthesis) {
             window.speechSynthesis.onvoiceschanged = loadVoices;
         }
-
-        // Load saved settings from localStorage
-        const savedSettings = localStorage.getItem('coachSettings');
-        if (savedSettings) {
-            try {
-                const settings = JSON.parse(savedSettings);
-                // Note: theme is now managed by ThemeProvider
-                if (settings.voiceSpeed) setVoiceSpeed(settings.voiceSpeed);
-                if (settings.autoReadQuestions !== undefined) setAutoReadQuestions(settings.autoReadQuestions);
-
-                // Only set selected voice from storage if we haven't already set it via loadVoices logic,
-                // OR if we want to try to use it (loadVoices validation will handle invalid ones next time it runs)
-                // Actually, simpler: Set it here, and let loadVoices validate it when voices align.
-                if (settings.selectedVoice) setSelectedVoice(settings.selectedVoice);
-            } catch (e) {
-                console.warn('Failed to parse settings', e);
-            }
-        }
     }, []);
 
     // Validation & Default Selection Effect
@@ -106,7 +117,8 @@ export default function SettingsPage() {
 
                 // Only update if different (prevent loops, though !exists check handles it)
                 if (selectedVoice !== defaultVoice) {
-                    setSelectedVoice(defaultVoice);
+                    const timer = window.setTimeout(() => setSelectedVoice(defaultVoice), 0);
+                    return () => window.clearTimeout(timer);
                 }
             }
         }

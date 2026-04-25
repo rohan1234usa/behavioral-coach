@@ -1,5 +1,5 @@
-import Link from 'next/link';
-import { ArrowUpRight, Github, Linkedin, Code2 } from 'lucide-react';
+import Image from 'next/image';
+import { ArrowUpRight, Linkedin, Code2 } from 'lucide-react';
 
 export default function AboutSection() {
     return (
@@ -14,9 +14,11 @@ export default function AboutSection() {
                  TODO: Update src with actual profile image. 
                  Recommended size: 400x400px 
               */}
-                            <img
+                            <Image
                                 src="/rohan-profile.png"
                                 alt="Rohan Singh - Full Stack Developer"
+                                width={320}
+                                height={320}
                                 className="w-full h-full object-cover"
                             />
                         </div>
@@ -39,7 +41,7 @@ export default function AboutSection() {
 
                         <div className="space-y-4 text-lg text-muted-foreground leading-relaxed font-medium mb-8 max-w-2xl">
                             <p>
-                                Computer Science undergraduate at <span className="text-foreground font-semibold">UC Irvine</span> (Class of '27) with a relentless passion for AI/ML and Full Stack engineering.
+                                Computer Science undergraduate at <span className="text-foreground font-semibold">UC Irvine</span> (Class of &apos;27) with a relentless passion for AI/ML and Full Stack engineering.
                             </p>
                             <p>
                                 This platform leverages the <span className="text-accent font-bold">Imentiv AI API</span>, utilizing core models I contributed to during my time with their engineering team. It represents the intersection of structural behavioral analysis and modern web architecture.

@@ -17,6 +17,34 @@ import {
     Tooltip
 } from 'recharts';
 
+type MetricKey = 'confidence' | 'clarity' | 'resilience' | 'engagement';
+
+type DashboardSession = {
+    id: number;
+    display_id: number;
+    question_text: string;
+    status: string;
+    created_at: string;
+    confidence_score?: number | null;
+    clarity_score?: number | null;
+    resilience_score?: number | null;
+    engagement_score?: number | null;
+};
+
+type DotPoint = {
+    x: number;
+    y: number;
+    z: number;
+};
+
+type ApiError = {
+    response?: {
+        data?: {
+            detail?: string;
+        };
+    };
+};
+
 // Minimalist "Dot Plot": Just points on a line to show distribution
 const generateDotData = (count: number) => {
     return Array.from({ length: count }).map((_, i) => ({
@@ -27,9 +55,8 @@ const generateDotData = (count: number) => {
 };
 
 export default function Dashboard() {
-    const { data: session, status } = useSession();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [sessions, setSessions] = useState<any[]>([]);
+    const { status } = useSession();
+    const [sessions, setSessions] = useState<DashboardSession[]>([]);
     const [loading, setLoading] = useState(true);
     const [coachingPlan, setCoachingPlan] = useState<CoachingPlanData | null>(null);
     const [generatingPlan, setGeneratingPlan] = useState(false);
@@ -62,9 +89,9 @@ export default function Dashboard() {
             await api.generateCoachingPlan(targetRole, company);
             const res = await api.getCoachingPlan();
             setCoachingPlan(res.data);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Failed to generate plan:", err);
-            alert(err.response?.data?.detail || "Failed to generate plan. Ensure you have completed at least one session.");
+            alert((err as ApiError).response?.data?.detail || "Failed to generate plan. Ensure you have completed at least one session.");
         } finally {
             setGeneratingPlan(false);
         }
@@ -122,11 +149,13 @@ export default function Dashboard() {
 
             {/* METRICS GRID: Aggregated averages from real sessions */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
-                {(['confidence', 'clarity', 'resilience', 'engagement'] as const).map((metric) => {
-                    const completed = sessions.filter(s => s.status === 'completed' && s[`${metric}_score`] != null);
+                {(['confidence', 'clarity', 'resilience', 'engagement'] as const).map((metric: MetricKey) => {
+                    const scoreKey = `${metric}_score` as const;
+                    const completed = sessions.filter(s => s.status === 'completed' && s[scoreKey] != null);
                     const avgRaw = completed.length > 0
-                        ? (completed.reduce((sum: number, s: any) => {
-                            let val = typeof s[`${metric}_score`] === 'number' ? s[`${metric}_score`] : 0;
+                        ? (completed.reduce((sum: number, s) => {
+                            const rawScore = s[scoreKey];
+                            let val = typeof rawScore === 'number' ? rawScore : 0;
                             if (val > 1) val = val / 100; // Recover legacy unbounded
                             return sum + val;
                         }, 0) / completed.length)
@@ -134,8 +163,9 @@ export default function Dashboard() {
                         
                     const avg = avgRaw !== null ? Math.max(0, Math.min(100, Math.round(avgRaw * 100))) : null;
                     
-                    const dotData = completed.map((s: any, i: number) => {
-                        let val = typeof s[`${metric}_score`] === 'number' ? s[`${metric}_score`] : 0;
+                    const dotData = completed.map((s, i) => {
+                        const rawScore = s[scoreKey];
+                        let val = typeof rawScore === 'number' ? rawScore : 0;
                         if (val > 1) val = val / 100;
                         return { x: i, y: Math.max(0, Math.min(100, Math.round(val * 100))), z: 1 };
                     });
@@ -233,19 +263,22 @@ export default function Dashboard() {
                             <div className="text-foreground/90">
                                 <ReactMarkdown
                                     components={{
-                                        h1: ({node, ...props}) => <h1 className="text-xl font-bold font-sans text-foreground mt-4 mb-2" {...props} />,
-                                        h2: ({node, ...props}) => <h2 className="text-lg font-bold font-sans text-foreground mt-4 mb-2" {...props} />,
-                                        h3: ({node, ...props}) => <h3 className="text-md font-bold font-sans text-foreground mt-3 mb-2" {...props} />,
-                                        p: ({node, ...props}) => <p className="mb-3 text-sm font-body leading-relaxed" {...props} />,
-                                        ul: ({node, ...props}) => <ul className="list-none pl-0 mb-4 space-y-3" {...props} />,
-                                        ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-4 space-y-3 text-sm font-body text-muted-foreground" {...props} />,
-                                        li: ({node, ...props}) => (
-                                            <li className="text-sm font-body text-muted-foreground flex items-start gap-2 relative" {...props}>
-                                                <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0 mt-1.5" />
-                                                <div>{props.children}</div>
-                                            </li>
-                                        ),
-                                        strong: ({node, ...props}) => <strong className="font-semibold font-sans text-foreground" {...props} />,
+                                        h1: ({node, ...props}) => { void node; return <h1 className="text-xl font-bold font-sans text-foreground mt-4 mb-2" {...props} />; },
+                                        h2: ({node, ...props}) => { void node; return <h2 className="text-lg font-bold font-sans text-foreground mt-4 mb-2" {...props} />; },
+                                        h3: ({node, ...props}) => { void node; return <h3 className="text-md font-bold font-sans text-foreground mt-3 mb-2" {...props} />; },
+                                        p: ({node, ...props}) => { void node; return <p className="mb-3 text-sm font-body leading-relaxed" {...props} />; },
+                                        ul: ({node, ...props}) => { void node; return <ul className="list-none pl-0 mb-4 space-y-3" {...props} />; },
+                                        ol: ({node, ...props}) => { void node; return <ol className="list-decimal pl-5 mb-4 space-y-3 text-sm font-body text-muted-foreground" {...props} />; },
+                                        li: ({node, ...props}) => {
+                                            void node;
+                                            return (
+                                                <li className="text-sm font-body text-muted-foreground flex items-start gap-2 relative" {...props}>
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0 mt-1.5" />
+                                                    <div>{props.children}</div>
+                                                </li>
+                                            );
+                                        },
+                                        strong: ({node, ...props}) => { void node; return <strong className="font-semibold font-sans text-foreground" {...props} />; },
                                     }}
                                 >
                                     {coachingPlan.action_plan}
@@ -285,7 +318,7 @@ export default function Dashboard() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border/50 font-mono text-sm">
-                            {sessions.map((session, i) => (
+                            {sessions.map((session) => (
                                 <tr key={session.id} className="hover:bg-secondary/30 transition-colors group">
                                     <td className="p-6 text-muted-foreground">#{session.display_id.toString().padStart(3, '0')}</td>
                                     <td className="p-6 font-medium text-foreground max-w-xs truncate">
@@ -321,7 +354,7 @@ export default function Dashboard() {
     );
 }
 
-function MetricCard({ title, value, data, color }: { title: string, value: string, data: any[], color: string }) {
+function MetricCard({ title, value, data, color }: { title: string, value: string, data: DotPoint[], color: string }) {
     return (
         <div className="stacked-card p-6 flex flex-col justify-between h-48 hover:translate-y-[-2px] transition-transform duration-300">
             <div className="flex justify-between items-start">

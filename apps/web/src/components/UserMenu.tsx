@@ -1,4 +1,5 @@
 "use client"
+import Image from "next/image"
 import { signOut } from "next-auth/react"
 import type { Session } from "next-auth"
 
@@ -12,10 +13,13 @@ export function UserMenu({ session }: { session: Session }) {
                 {session.user.name ?? "User"}
             </span>
             {session.user.image && (
-                <img
+                <Image
                     src={session.user.image}
                     alt="Profile"
+                    width={32}
+                    height={32}
                     className="w-8 h-8 rounded-full border border-border"
+                    unoptimized
                 />
             )}
             <button

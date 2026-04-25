@@ -98,12 +98,15 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=password
 POSTGRES_DB=coach_prod
 DATABASE_URL=postgresql://postgres:password@db:5432/coach_prod
+FRONTEND_ORIGINS=https://behavioral-interview-coach.vercel.app
 
 # --- AWS Storage ---
 AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_REGION=us-east-1
 S3_BUCKET_NAME=your-production-bucket
+MAX_VIDEO_UPLOAD_BYTES=104857600
+MAX_RESUME_UPLOAD_BYTES=5242880
 
 # --- AI Integrations ---
 IMENTIV_API_KEY=your_imentiv_key

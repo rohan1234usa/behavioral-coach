@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession, signIn } from 'next-auth/react';
-import { Loader2, Square, Volume2, VolumeX, LogIn } from 'lucide-react';
+import { Loader2, Volume2, VolumeX } from 'lucide-react';
 import { api } from '@/services/api';
 import { useSpeechSynthesis, useAutoSpeak } from '@/hooks/useSpeechSynthesis';
 
@@ -18,11 +18,10 @@ function RecordingTimer({ status }: { status: 'idle' | 'recording' | 'uploading'
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (status === 'recording') {
+      const startedAt = Date.now();
       interval = setInterval(() => {
-        setTimer((t) => t + 1);
+        setTimer(Math.floor((Date.now() - startedAt) / 1000));
       }, 1000);
-    } else if (status === 'idle') {
-      setTimer(0);
     }
     return () => clearInterval(interval);
   }, [status]);
@@ -33,7 +32,7 @@ function RecordingTimer({ status }: { status: 'idle' | 'recording' | 'uploading'
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  return <span className="text-xl font-mono font-medium text-foreground">{formatTime(timer)}</span>;
+  return <span className="text-xl font-mono font-medium text-foreground">{formatTime(status === 'recording' ? timer : 0)}</span>;
 }
 
 /**
@@ -50,9 +49,12 @@ function InternalRecorder({ useRecorder, onUpload }: { useRecorder: any, onUploa
     video: true,
     audio: true,
     blobPropertyBag: { type: 'video/webm' },
-    onStop: (blobUrl: string, blob: Blob) => {
+    onStop: async (blobUrl: string, blob: Blob) => {
       setStatus('uploading');
-      onUpload(blobUrl, blob);
+      const keepProcessing = await onUpload(blobUrl, blob);
+      if (!keepProcessing) {
+        setStatus('idle');
+      }
     }
   });
 
@@ -175,7 +177,7 @@ export default function ArenaRecorder({ initialQuestion = "Describe a difficult 
 
   // Speech synthesis integration
   const { speak, stop, isSpeaking, isSupported } = useSpeechSynthesis();
-  const { data: session } = useSession();
+  const { data: session, status: authStatus } = useSession();
 
   // Auto-speak the question when component mounts (if enabled in settings)
   useAutoSpeak(initialQuestion, true);
@@ -188,15 +190,19 @@ export default function ArenaRecorder({ initialQuestion = "Describe a difficult 
     loadRecorder();
   }, []);
 
-  const handleUploadFlow = async (blobUrl: string, blob: Blob) => {
-    if (!session) {
+  const handleUploadFlow = async (blobUrl: string, blob: Blob): Promise<boolean> => {
+    if (authStatus === 'loading') {
+      alert("Still checking your sign-in status. Please try finishing again in a moment.");
+      return false;
+    }
+
+    if (authStatus !== 'authenticated' || !session?.user) {
       const confirmSignIn = window.confirm("You must be signed in to save and analyze your performance.\n\nSign in now?");
       if (confirmSignIn) {
         signIn("google", { callbackUrl: "/arena" });
+        return true;
       }
-      // Reload to reset the recorder state if they cancel, or just let them lose the video?
-      // Ideally we'd save it locally or something, but for now blocking is the request.
-      return;
+      return false;
     }
 
     try {
@@ -208,13 +214,16 @@ export default function ArenaRecorder({ initialQuestion = "Describe a difficult 
       await api.uploadVideo(sessionData.session_id, blob);
       await api.triggerAnalysis(sessionData.session_id);
       router.push(`/results/${sessionData.session_id}`);
+      return true;
     } catch (err: unknown) {
       console.error("❌ ERROR in handleUploadFlow:", err);
+      let message = "Analysis failed. Check console for details.";
       if (err instanceof Error) {
         console.error("Error details:", err.message, err.stack);
+        message = `Analysis failed: ${err.message}`;
       }
-      alert("Analysis failed. Check console for details.");
-      // window.location.reload(); // Removed to allow debugging
+      alert(message);
+      return false;
     }
   };
 

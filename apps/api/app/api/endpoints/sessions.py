@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app.db.base import get_db
 from app.db.models import Session as SessionModel, AnalysisResult
@@ -10,6 +9,9 @@ router = APIRouter()
 # 1. GET ALL SESSIONS (For Dashboard)
 @router.get("/")
 def get_sessions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    skip = max(skip, 0)
+    limit = max(1, min(limit, 100))
+
     # Fetch sessions sorted by newest first, joining analysis to avoid N+1,
     # and only loading the columns we need to prevent pulling large JSON/Text fields.
     sessions = (
@@ -18,7 +20,6 @@ def get_sessions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db))
             SessionModel.question_text,
             SessionModel.status,
             SessionModel.created_at,
-            SessionModel.video_s3_key,
             AnalysisResult.confidence_score,
             AnalysisResult.engagement_score,
             AnalysisResult.clarity_score,
@@ -42,7 +43,6 @@ def get_sessions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db))
             "question_text": s.question_text,
             "status": s.status,
             "created_at": s.created_at,
-            "video_s3_key": s.video_s3_key,
             # Include summary scores from analysis if available
             "confidence_score": s.confidence_score,
             "engagement_score": s.engagement_score,

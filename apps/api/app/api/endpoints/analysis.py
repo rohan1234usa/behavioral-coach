@@ -408,6 +408,13 @@ def trigger_analysis(session_id: int, background_tasks: BackgroundTasks, db: Ses
     db_session = db.query(UserSession).filter(UserSession.id == session_id).first()
     if not db_session:
         raise HTTPException(status_code=404, detail="Session not found")
+    if db_session.status == "completed":
+        return {"status": "Analysis already completed", "session_id": session_id}
+    if db_session.status == "processing":
+        return {"status": "Analysis already queued", "session_id": session_id}
+    if db_session.status not in {"uploaded", "failed"}:
+        raise HTTPException(status_code=409, detail="Upload must complete before analysis can start")
+
     db_session.status = "processing"
     db.commit()
     background_tasks.add_task(run_real_pipeline, session_id)
@@ -476,7 +483,6 @@ def get_analysis_result(session_id: int, db: Session = Depends(get_db)):
         "metrics_data": result.metrics_data,
         "created_at": session.created_at,
         "candidate_name": candidate_name,
-        "video_key": session.video_s3_key # Useful if frontend needs it direct
     }
     
     return {"status": session.status, "data": response_data}

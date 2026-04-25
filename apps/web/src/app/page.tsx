@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { ArrowUpRight, Scale, Brain, Crosshair } from 'lucide-react';
 
 
@@ -85,7 +86,7 @@ export default function LandingPage() {
   );
 }
 
-function FeatureColumn({ icon, title, desc }: { icon: any, title: string, desc: string }) {
+function FeatureColumn({ icon, title, desc }: { icon: ReactNode, title: string, desc: string }) {
   return (
     <div className="p-12 hover:bg-surface transition-colors group">
       <div className="mb-6 text-foreground group-hover:text-accent transition-colors">{icon}</div>

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Use relative path to leverage Next.js Rewrites (avoids CORS)
-const API_BASE = '/api';
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/$/, '').replace(/\/api$/, '');
+const API_BASE = backendUrl ? `${backendUrl}/api` : '/api';
 
 // Types matching the Backend Schema
 export interface Session {
@@ -10,7 +10,6 @@ export interface Session {
   question_text: string;
   status: string;
   created_at: string;
-  video_s3_key: string;
   confidence_score?: number;
   engagement_score?: number;
   clarity_score?: number;
@@ -91,10 +90,7 @@ export const api = {
     const formData = new FormData();
     formData.append('file', file);
 
-    // In Production: We POST directly to Render to bypass Next.js Vercel 4.5MB Limits.
-    // Locally (undefined env var): We POST to the Next.js API proxy (which has no size limit locally) to avoid CORS.
-    const uploadBase = process.env.NEXT_PUBLIC_BACKEND_URL ? process.env.NEXT_PUBLIC_BACKEND_URL : '';
-    await axios.post(`${uploadBase}/api/sessions/${sessionId}/upload`, formData);
+    await axios.post(`${API_BASE}/sessions/${sessionId}/upload`, formData);
   },
 
   // NEW: Fetch history

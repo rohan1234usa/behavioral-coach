@@ -22,44 +22,43 @@ const DEFAULT_SETTINGS: SpeechSettings = {
     autoReadQuestions: false,
 };
 
+const loadSpeechSettings = (): SpeechSettings => {
+    if (typeof window === 'undefined') return DEFAULT_SETTINGS;
+
+    try {
+        const savedSettings = localStorage.getItem('coachSettings');
+        if (savedSettings) {
+            const parsed = JSON.parse(savedSettings);
+            return {
+                selectedVoice: parsed.selectedVoice || '',
+                voiceSpeed: parsed.voiceSpeed || 1,
+                autoReadQuestions: parsed.autoReadQuestions ?? false,
+            };
+        }
+    } catch (e) {
+        console.warn('Failed to load speech settings:', e);
+    }
+
+    return DEFAULT_SETTINGS;
+};
+
 /**
  * Custom hook for text-to-speech functionality
  * Reads settings from localStorage (coachSettings) set by the Settings page
  */
 export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
     const [isSpeaking, setIsSpeaking] = useState(false);
-    const [isSupported, setIsSupported] = useState(false);
-    const [settings, setSettings] = useState<SpeechSettings>(DEFAULT_SETTINGS);
+    const [isSupported] = useState(() => typeof window !== 'undefined' && Boolean(window.speechSynthesis));
+    const [settings, setSettings] = useState<SpeechSettings>(loadSpeechSettings);
     const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
     // Check for browser support and load settings
     useEffect(() => {
         if (typeof window !== 'undefined' && window.speechSynthesis) {
-            setIsSupported(true);
-
-            // Load settings from localStorage
-            const loadSettings = () => {
-                try {
-                    const savedSettings = localStorage.getItem('coachSettings');
-                    if (savedSettings) {
-                        const parsed = JSON.parse(savedSettings);
-                        setSettings({
-                            selectedVoice: parsed.selectedVoice || '',
-                            voiceSpeed: parsed.voiceSpeed || 1,
-                            autoReadQuestions: parsed.autoReadQuestions ?? false,
-                        });
-                    }
-                } catch (e) {
-                    console.warn('Failed to load speech settings:', e);
-                }
-            };
-
-            loadSettings();
-
             // Listen for storage changes (in case settings are updated in another tab)
             const handleStorageChange = (e: StorageEvent) => {
                 if (e.key === 'coachSettings') {
-                    loadSettings();
+                    setSettings(loadSpeechSettings());
                 }
             };
 

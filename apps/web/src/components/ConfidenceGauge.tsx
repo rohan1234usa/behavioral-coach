@@ -12,8 +12,7 @@ export default function ConfidenceGauge() {
     useEffect(() => {
         api.getConfidenceScore()
             .then(setData)
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .catch((err: any) => console.error("Failed to fetch confidence:", err))
+            .catch((err: unknown) => console.error("Failed to fetch confidence:", err))
             .finally(() => setLoading(false));
     }, []);
 
@@ -75,7 +74,7 @@ export default function ConfidenceGauge() {
                             Are you ready?
                         </h2>
                         <p className="text-emerald-400 font-medium mt-1">
-                            "{data.message}"
+                            &quot;{data.message}&quot;
                         </p>
                     </div>
 

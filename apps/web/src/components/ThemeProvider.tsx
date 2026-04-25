@@ -13,35 +13,28 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
+const getInitialTheme = (): Theme => {
+    if (typeof window === 'undefined') return 'system';
+    const savedTheme = localStorage.getItem('theme') as Theme | null;
+    return savedTheme && ['light', 'dark', 'system'].includes(savedTheme) ? savedTheme : 'system';
+};
+
+const resolveTheme = (theme: Theme): ResolvedTheme => {
+    if (typeof window === 'undefined') return 'light';
+    if (theme === 'system') {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return theme;
+};
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-    const [theme, setThemeState] = useState<Theme>('system');
-    const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('light');
-    const [mounted, setMounted] = useState(false);
-
-    // Initialize theme from localStorage and system preferences
-    useEffect(() => {
-        setMounted(true);
-
-        // Load saved theme preference
-        const savedTheme = localStorage.getItem('theme') as Theme | null;
-        if (savedTheme && ['light', 'dark', 'system'].includes(savedTheme)) {
-            setThemeState(savedTheme);
-        }
-    }, []);
+    const [theme, setThemeState] = useState<Theme>(getInitialTheme);
+    const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => resolveTheme(getInitialTheme()));
 
     // Update resolved theme based on theme preference and system settings
     useEffect(() => {
         const updateResolvedTheme = () => {
-            let newResolvedTheme: ResolvedTheme;
-
-            if (theme === 'system') {
-                // Use system preference
-                const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                newResolvedTheme = systemPrefersDark ? 'dark' : 'light';
-            } else {
-                // Use explicit preference
-                newResolvedTheme = theme;
-            }
+            const newResolvedTheme = resolveTheme(theme);
 
             setResolvedTheme(newResolvedTheme);
 
@@ -54,9 +47,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             }
         };
 
-        if (mounted) {
-            updateResolvedTheme();
-        }
+        updateResolvedTheme();
 
         // Listen for system theme changes if theme is set to 'system'
         if (theme === 'system') {
@@ -70,7 +61,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
                 mediaQuery.removeEventListener('change', handleChange);
             };
         }
-    }, [theme, mounted]);
+    }, [theme]);
 
     // Custom setTheme that also updates localStorage
     const setTheme = (newTheme: Theme) => {

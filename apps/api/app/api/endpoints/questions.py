@@ -11,8 +11,8 @@ router = APIRouter()
 
 @router.post("/generate")
 async def generate_questions(
-    company: str = Form(...),
-    role: str = Form(...),
+    company: str = Form(..., min_length=1, max_length=120),
+    role: str = Form(..., min_length=1, max_length=120),
     resume: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
@@ -23,6 +23,8 @@ async def generate_questions(
     if resume:
         try:
             resume_text = await ResumeService.extract_text_from_pdf(resume)
+        except HTTPException:
+            raise
         except Exception as e:
              print(f"Resume parsing failed: {e}")
 

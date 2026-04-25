@@ -1,22 +1,24 @@
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from typing import Optional
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app.services.s3 import s3_service
 from app.db.base import get_db
 from app.db.models import Session as UserSession
-import uuid
 
 router = APIRouter()
 
 class UploadRequest(BaseModel):
     file_type: str = "video/webm"
-    question: str = "Tell me about yourself."
-    user_email: str = None
-    user_name: str = None
+    question: str = Field(default="Tell me about yourself.", min_length=1, max_length=500)
+    user_email: Optional[str] = Field(default=None, max_length=320)
+    user_name: Optional[str] = Field(default=None, max_length=120)
 
 @router.post("/presigned-url")
 def get_upload_url(payload: UploadRequest, db: Session = Depends(get_db)):
     from app.db.models import User # Import here to avoid circular deps if any
+    if payload.file_type != "video/webm":
+        raise HTTPException(status_code=400, detail="Only WebM video uploads are supported")
     
     # 1. Handle User Association
     user_id = None
