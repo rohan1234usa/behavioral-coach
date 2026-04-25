@@ -84,6 +84,7 @@ class BaseClient:
         json: Optional[Dict[str, Any]] = None,
         data: Optional[Dict[str, Any]] = None,
         files: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
         retry_count: int = 0,
     ) -> Dict[str, Any]:
         """
@@ -96,6 +97,7 @@ class BaseClient:
             json: JSON request body.
             data: Form data.
             files: Files to upload.
+            headers: Additional request headers.
             retry_count: Current retry attempt number.
 
         Returns:
@@ -117,10 +119,12 @@ class BaseClient:
 
         try:
             # Remove Content-Type header if uploading files
-            headers = self.session.headers.copy()
+            request_headers = self.session.headers.copy()
+            if headers:
+                request_headers.update(headers)
             if files:
-                # Setting to None tells requests to remove this header from the session headers
-                headers["Content-Type"] = None
+                # Let requests generate the multipart boundary.
+                request_headers.pop("Content-Type", None)
 
             response = self.session.request(
                 method=method,
@@ -130,7 +134,7 @@ class BaseClient:
                 data=data,
                 files=files,
                 timeout=self.config.timeout,
-                headers=headers if files else None,
+                headers=request_headers if files or headers else None,
             )
 
             logger.debug(f"Response {response.status_code}")
@@ -154,7 +158,7 @@ class BaseClient:
             # Retry on timeout or connection errors
             if retry_count < self.config.max_retries:
                 time.sleep(2**retry_count)  # Exponential backoff
-                return self._request(method, endpoint, params=params, json=json, data=data, files=files, retry_count=retry_count + 1)
+                return self._request(method, endpoint, params=params, json=json, data=data, files=files, headers=headers, retry_count=retry_count + 1)
             raise ImentivAPIError(
                 f"Request failed after {self.config.max_retries} retries: {str(e)}"
             ) from e
@@ -171,9 +175,11 @@ class BaseClient:
         json: Optional[Dict[str, Any]] = None,
         data: Optional[Dict[str, Any]] = None,
         files: Optional[Dict[str, Any]] = None,
+        params: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """Make a POST request."""
-        return self._request("POST", endpoint, json=json, data=data, files=files)
+        return self._request("POST", endpoint, params=params, json=json, data=data, files=files, headers=headers)
 
     def put(self, endpoint: str, json: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Make a PUT request."""

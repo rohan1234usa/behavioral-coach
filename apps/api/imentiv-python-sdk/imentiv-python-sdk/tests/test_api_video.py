@@ -33,6 +33,9 @@ class TestVideoAPI:
 
         mock_post.assert_called_once()
         assert mock_post.call_args.kwargs["data"]["user_consent_version"] == "2.0.0"
+        assert mock_post.call_args.kwargs["data"]["consent_version"] == "2.0.0"
+        assert mock_post.call_args.kwargs["params"]["user_consent_version"] == "2.0.0"
+        assert mock_post.call_args.kwargs["headers"]["X-User-Consent-Version"] == "2.0.0"
         assert result == mock_video_upload_response
         assert result["video_id"] == "video_abc123"
 

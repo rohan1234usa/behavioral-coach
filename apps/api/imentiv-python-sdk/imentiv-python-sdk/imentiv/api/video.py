@@ -50,10 +50,18 @@ class VideoAPI:
         with open(file_path, "rb") as f:
             files = {"video_file": f}
             data = {"title": title, "description": description}
+            params = None
+            headers = None
             if user_consent_version:
                 data["user_consent_version"] = user_consent_version
+                data["consent_version"] = user_consent_version
+                params = {"user_consent_version": user_consent_version}
+                headers = {
+                    "X-User-Consent-Version": user_consent_version,
+                    "X-Consent-Version": user_consent_version,
+                }
             # Use v2 endpoint
-            response = self.client.post("v2/videos", files=files, data=data)
+            response = self.client.post("v2/videos", files=files, data=data, params=params, headers=headers)
             
             # Map 'id' to 'video_id' for backward compatibility
             if "id" in response and "video_id" not in response:
