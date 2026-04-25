@@ -3,6 +3,22 @@ import axios from 'axios';
 const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/$/, '').replace(/\/api$/, '');
 const API_BASE = backendUrl ? `${backendUrl}/api` : '/api';
 
+export interface AuthContext {
+  email?: string | null;
+  name?: string | null;
+}
+
+const authHeaders = (auth?: AuthContext) => {
+  const headers: Record<string, string> = {};
+  if (auth?.email) headers['X-User-Email'] = auth.email;
+  if (auth?.name) headers['X-User-Name'] = auth.name;
+  return headers;
+};
+
+const sessionHeaders = (sessionToken: string) => ({
+  'X-Session-Token': sessionToken,
+});
+
 // Types matching the Backend Schema
 export interface Session {
   id: number;
@@ -10,6 +26,7 @@ export interface Session {
   question_text: string;
   status: string;
   created_at: string;
+  session_token: string | null;
   confidence_score?: number;
   engagement_score?: number;
   clarity_score?: number;
@@ -20,7 +37,7 @@ export interface Session {
 export interface SessionInitResponse {
   session_id: number;
   upload_url: string;
-  video_key: string;
+  session_token: string;
 }
 
 export interface FeedbackTip {
@@ -75,60 +92,58 @@ export interface CoachingPlanData {
 
 export const api = {
   // 1. Get Presigned URL
-  startSession: async (question: string, userEmail?: string | null, userName?: string | null): Promise<SessionInitResponse> => {
+  startSession: async (question: string, auth?: AuthContext): Promise<SessionInitResponse> => {
     const payload = {
       question,
-      user_email: userEmail,
-      user_name: userName
     };
-    const res = await axios.post(`${API_BASE}/upload/presigned-url`, payload);
+    const res = await axios.post(`${API_BASE}/upload/presigned-url`, payload, { headers: authHeaders(auth) });
     return res.data;
   },
 
   // NEW: Upload directly to the Backend (Bypasses Vercel/Next.js body size limits)
-  uploadVideo: async (sessionId: number | string, file: Blob) => {
+  uploadVideo: async (sessionId: number | string, file: Blob, sessionToken: string) => {
     const formData = new FormData();
     formData.append('file', file);
 
-    await axios.post(`${API_BASE}/sessions/${sessionId}/upload`, formData);
+    await axios.post(`${API_BASE}/sessions/${sessionId}/upload`, formData, { headers: sessionHeaders(sessionToken) });
   },
 
   // NEW: Fetch history
-  getSessions: async () => {
-    const res = await axios.get(`${API_BASE}/sessions`);
+  getSessions: async (auth?: AuthContext) => {
+    const res = await axios.get(`${API_BASE}/sessions`, { headers: authHeaders(auth) });
     return res.data;
   },
 
   // NEW: Helper to get the video URL
-  getVideoUrl: (sessionId: string) => {
-    return `${API_BASE}/sessions/${sessionId}/video`;
+  getVideoUrl: (sessionId: string, sessionToken: string) => {
+    return `${API_BASE}/sessions/${sessionId}/video?session_token=${encodeURIComponent(sessionToken)}`;
   },
 
   // 3. Trigger Mock Analysis
-  triggerAnalysis: async (sessionId: number) => {
-    await axios.post(`${API_BASE}/analysis/${sessionId}/trigger`);
+  triggerAnalysis: async (sessionId: number, sessionToken: string) => {
+    await axios.post(`${API_BASE}/analysis/${sessionId}/trigger`, null, { headers: sessionHeaders(sessionToken) });
   },
 
   // 4. Poll for Results
-  getResults: async (sessionId: string) => {
-    const res = await axios.get(`${API_BASE}/analysis/${sessionId}/result`);
+  getResults: async (sessionId: string, sessionToken: string) => {
+    const res = await axios.get(`${API_BASE}/analysis/${sessionId}/result`, { headers: sessionHeaders(sessionToken) });
     return res.data; // Returns { status: "processing" | "completed", data: ... }
   },
 
   // NEW: Generate Questions (Non-Streaming - kept for backwards compatibility if needed)
-  generateQuestions: async (company: string, role: string, resumeFile?: File): Promise<string[]> => {
+  generateQuestions: async (company: string, role: string, resumeFile?: File, auth?: AuthContext): Promise<string[]> => {
     const formData = new FormData();
     formData.append('company', company);
     formData.append('role', role);
     if (resumeFile) {
       formData.append('resume', resumeFile);
     }
-    const res = await axios.post(`${API_BASE}/questions/generate`, formData);
+    const res = await axios.post(`${API_BASE}/questions/generate`, formData, { headers: authHeaders(auth) });
     return res.data;
   },
 
   // NEW: Generate Questions (Streaming)
-  generateQuestionsStream: async (company: string, role: string, resumeFile?: File): Promise<ReadableStream<Uint8Array> | null> => {
+  generateQuestionsStream: async (company: string, role: string, resumeFile?: File, auth?: AuthContext): Promise<ReadableStream<Uint8Array> | null> => {
     const formData = new FormData();
     formData.append('company', company);
     formData.append('role', role);
@@ -140,6 +155,7 @@ export const api = {
     // without advanced adapter configurations.
     const res = await fetch(`${API_BASE}/questions/generate`, {
         method: 'POST',
+        headers: authHeaders(auth),
         body: formData,
     });
     
@@ -151,23 +167,23 @@ export const api = {
   },
 
   // NEW: Get Confidence Score
-  getConfidenceScore: async (): Promise<ConfidenceData> => {
-    const res = await axios.get(`${API_BASE}/analysis/confidence`);
+  getConfidenceScore: async (auth?: AuthContext): Promise<ConfidenceData> => {
+    const res = await axios.get(`${API_BASE}/analysis/confidence`, { headers: authHeaders(auth) });
     return res.data;
   },
 
   // NEW: Get Active Coaching Plan
-  getCoachingPlan: async (): Promise<{status: string, data: CoachingPlanData | null}> => {
-    const res = await axios.get(`${API_BASE}/analysis/coaching`);
+  getCoachingPlan: async (auth?: AuthContext): Promise<{status: string, data: CoachingPlanData | null}> => {
+    const res = await axios.get(`${API_BASE}/analysis/coaching`, { headers: authHeaders(auth) });
     return res.data;
   },
 
   // NEW: Generate New Coaching Plan
-  generateCoachingPlan: async (targetRole?: string, company?: string): Promise<{status: string, plan_id: number}> => {
+  generateCoachingPlan: async (targetRole?: string, company?: string, auth?: AuthContext): Promise<{status: string, plan_id: number}> => {
     const res = await axios.post(`${API_BASE}/analysis/coaching/generate`, {
         target_role: targetRole || "",
         company: company || ""
-    });
+    }, { headers: authHeaders(auth) });
     return res.data;
   }
 };

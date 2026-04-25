@@ -4,6 +4,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Behavioural Interview Coach"
     DATABASE_URL: str = "postgresql://postgres:password@db:5432/coach_dev"
     FRONTEND_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000,https://behavioral-interview-coach.vercel.app"
+    AUTO_CREATE_DB: bool = True
     
     # AWS Credentials
     AWS_ACCESS_KEY_ID: str

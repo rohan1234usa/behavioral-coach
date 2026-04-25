@@ -17,6 +17,7 @@ class Session(Base):
     
     question_text = Column(String)
     video_s3_key = Column(String)
+    access_token = Column(String, unique=True, index=True, nullable=True)
     
     # Status: 'created', 'uploading', 'processing', 'completed', 'failed'
     status = Column(String, default="created") 

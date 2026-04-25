@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from app.api.deps import CurrentUser, get_accessible_session, get_current_user
 from app.db.base import get_db
 from app.db.models import Session as SessionModel, AnalysisResult
 from app.services.s3 import s3_service
@@ -8,7 +9,12 @@ router = APIRouter()
 
 # 1. GET ALL SESSIONS (For Dashboard)
 @router.get("/")
-def get_sessions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def get_sessions(
+    skip: int = 0,
+    limit: int = 100,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     skip = max(skip, 0)
     limit = max(1, min(limit, 100))
 
@@ -20,6 +26,7 @@ def get_sessions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db))
             SessionModel.question_text,
             SessionModel.status,
             SessionModel.created_at,
+            SessionModel.access_token,
             AnalysisResult.confidence_score,
             AnalysisResult.engagement_score,
             AnalysisResult.clarity_score,
@@ -27,6 +34,7 @@ def get_sessions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db))
             AnalysisResult.dominant_emotion,
         )
         .outerjoin(AnalysisResult, SessionModel.id == AnalysisResult.session_id)
+        .filter(SessionModel.user_id == current_user.id)
         .order_by(SessionModel.created_at.desc())
         .offset(skip)
         .limit(limit)
@@ -34,7 +42,7 @@ def get_sessions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db))
     )
     
     # Get total count for stable indexing
-    total_count = db.query(SessionModel).count()
+    total_count = db.query(SessionModel).filter(SessionModel.user_id == current_user.id).count()
     
     return [
         {
@@ -43,6 +51,7 @@ def get_sessions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db))
             "question_text": s.question_text,
             "status": s.status,
             "created_at": s.created_at,
+            "session_token": s.access_token,
             # Include summary scores from analysis if available
             "confidence_score": s.confidence_score,
             "engagement_score": s.engagement_score,
@@ -55,9 +64,9 @@ def get_sessions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db))
 
 # 2. STREAM VIDEO (The "Proxy Player")
 @router.get("/{session_id}/video")
-def stream_video(session_id: str):
+def stream_video(db_session: SessionModel = Depends(get_accessible_session)):
     try:
-        file_key = f"{session_id}.webm"
+        file_key = f"{db_session.id}.webm"
         from app.services.s3 import s3_service
         
         url = s3_service.generate_presigned_download_url(file_key)

@@ -99,6 +99,7 @@ POSTGRES_PASSWORD=password
 POSTGRES_DB=coach_prod
 DATABASE_URL=postgresql://postgres:password@db:5432/coach_prod
 FRONTEND_ORIGINS=https://behavioral-interview-coach.vercel.app
+AUTO_CREATE_DB=true
 
 # --- AWS Storage ---
 AWS_ACCESS_KEY_ID=your_access_key
@@ -123,6 +124,7 @@ docker-compose up --build -d
 ```
 
   * **API Health:** `http://localhost:8000/`
+  * **Runtime Health:** `http://localhost:8000/health`
   * **Swagger Docs:** `http://localhost:8000/docs`
 
 ### 3\. Launch Frontend (Local)
@@ -155,11 +157,10 @@ cd apps/web && npm run lint
 
 ### Database Migrations
 
-We use Alembic (via SQLAlchemy) for schema management.
+The API currently auto-creates and lightly repairs MVP schema at startup when `AUTO_CREATE_DB=true`.
+Move new production schema changes into Alembic migrations before adding more tables or indexes.
 
-```bash
-docker-compose exec api alembic upgrade head
-```
+Alembic is the intended next step for durable migrations, but migration files are not yet part of this repo.
 
 -----
 

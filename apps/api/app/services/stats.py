@@ -15,12 +15,12 @@ class StatsService:
         # We query all analysis results (optionally filtered by user_id if we had auth)
         # Since we don't have real auth yet, we'll calculate global stats or assume single user for MVP.
         
-        top_scores = db.query(AnalysisResult.confidence_score)\
+        top_scores_query = db.query(AnalysisResult.confidence_score)\
             .join(UserSession)\
-            .filter(UserSession.status == 'completed')\
-            .order_by(desc(AnalysisResult.confidence_score))\
-            .limit(3)\
-            .all()
+            .filter(UserSession.status == 'completed')
+        if user_id is not None:
+            top_scores_query = top_scores_query.filter(UserSession.user_id == user_id)
+        top_scores = top_scores_query.order_by(desc(AnalysisResult.confidence_score)).limit(3).all()
             
         potential_score = 0.0
         if top_scores:
@@ -28,11 +28,12 @@ class StatsService:
             potential_score = sum(scores) / len(scores)
 
         # Recent Progression Boost
-        recent_session = db.query(AnalysisResult.confidence_score)\
+        recent_session_query = db.query(AnalysisResult.confidence_score)\
             .join(UserSession)\
-            .filter(UserSession.status == 'completed')\
-            .order_by(desc(UserSession.created_at))\
-            .first()
+            .filter(UserSession.status == 'completed')
+        if user_id is not None:
+            recent_session_query = recent_session_query.filter(UserSession.user_id == user_id)
+        recent_session = recent_session_query.order_by(desc(UserSession.created_at)).first()
             
         if recent_session:
             recent_score = (recent_session[0] or 0) * 100
@@ -42,10 +43,12 @@ class StatsService:
         # 2. MOMENTUM (30%): Activity in the last 7 days
         # Progressive scale: 1=10, 2=18, 3=24, 4=28, 5+=30
         seven_days_ago = datetime.now() - timedelta(days=7)
-        recent_sessions_count = db.query(UserSession)\
+        recent_sessions_query = db.query(UserSession)\
             .filter(UserSession.created_at >= seven_days_ago)\
-            .filter(UserSession.status == 'completed')\
-            .count()
+            .filter(UserSession.status == 'completed')
+        if user_id is not None:
+            recent_sessions_query = recent_sessions_query.filter(UserSession.user_id == user_id)
+        recent_sessions_count = recent_sessions_query.count()
             
         momentum_points = {0: 0, 1: 10, 2: 18, 3: 24, 4: 28}
         momentum_score = momentum_points.get(recent_sessions_count, 30)

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSession, signIn } from 'next-auth/react';
 import { api, CoachingPlanData } from '@/services/api';
@@ -25,6 +25,7 @@ type DashboardSession = {
     question_text: string;
     status: string;
     created_at: string;
+    session_token: string | null;
     confidence_score?: number | null;
     clarity_score?: number | null;
     resilience_score?: number | null;
@@ -55,7 +56,7 @@ const generateDotData = (count: number) => {
 };
 
 export default function Dashboard() {
-    const { status } = useSession();
+    const { data: session, status } = useSession();
     const [sessions, setSessions] = useState<DashboardSession[]>([]);
     const [loading, setLoading] = useState(true);
     const [coachingPlan, setCoachingPlan] = useState<CoachingPlanData | null>(null);
@@ -65,6 +66,10 @@ export default function Dashboard() {
     // Customization inputs
     const [targetRole, setTargetRole] = useState("Software Engineer");
     const [company, setCompany] = useState("FAANG");
+    const auth = useMemo(() => ({
+        email: session?.user?.email,
+        name: session?.user?.name,
+    }), [session?.user?.email, session?.user?.name]);
 
     useEffect(() => {
         setMounted(true);
@@ -73,21 +78,21 @@ export default function Dashboard() {
     useEffect(() => {
         if (status === 'authenticated') {
             Promise.all([
-                api.getSessions().then(data => setSessions(data)),
-                api.getCoachingPlan().then(res => setCoachingPlan(res.data))
+                api.getSessions(auth).then(data => setSessions(data)),
+                api.getCoachingPlan(auth).then(res => setCoachingPlan(res.data))
             ])
             .catch(err => console.error(err))
             .finally(() => setLoading(false));
         } else if (status === 'unauthenticated') {
             setLoading(false);
         }
-    }, [status]);
+    }, [status, auth]);
 
     const handleGeneratePlan = async () => {
         setGeneratingPlan(true);
         try {
-            await api.generateCoachingPlan(targetRole, company);
-            const res = await api.getCoachingPlan();
+            await api.generateCoachingPlan(targetRole, company, auth);
+            const res = await api.getCoachingPlan(auth);
             setCoachingPlan(res.data);
         } catch (err: unknown) {
             console.error("Failed to generate plan:", err);
@@ -144,7 +149,7 @@ export default function Dashboard() {
 
             {/* CONFIDENCE NORTH STAR */}
             <div className="mb-16 animate-fade-in-up">
-                <ConfidenceGauge />
+                <ConfidenceGauge auth={auth} />
             </div>
 
             {/* METRICS GRID: Aggregated averages from real sessions */}
@@ -328,8 +333,8 @@ export default function Dashboard() {
                                         {new Date(session.created_at).toLocaleDateString()}
                                     </td>
                                     <td className="p-6 text-right">
-                                        {session.status === 'completed' ? (
-                                            <Link href={`/results/${session.id}`} className="inline-flex items-center gap-1 text-xs font-bold uppercase text-primary border-b border-transparent group-hover:border-primary transition-all">
+                                        {session.status === 'completed' && session.session_token ? (
+                                            <Link href={`/results/${session.id}?token=${encodeURIComponent(session.session_token)}`} className="inline-flex items-center gap-1 text-xs font-bold uppercase text-primary border-b border-transparent group-hover:border-primary transition-all">
                                                 View <ArrowUpRight className="w-3 h-3" />
                                             </Link>
                                         ) : (

@@ -196,7 +196,7 @@ export default function ArenaRecorder({ initialQuestion = "Describe a difficult 
       return false;
     }
 
-    if (authStatus !== 'authenticated' || !session?.user) {
+    if (authStatus !== 'authenticated' || !session?.user?.email) {
       const confirmSignIn = window.confirm("You must be signed in to save and analyze your performance.\n\nSign in now?");
       if (confirmSignIn) {
         signIn("google", { callbackUrl: "/arena" });
@@ -208,12 +208,12 @@ export default function ArenaRecorder({ initialQuestion = "Describe a difficult 
     try {
       const sessionData = await api.startSession(
         initialQuestion,
-        session.user?.email,
-        session.user?.name
+        { email: session.user.email, name: session.user.name }
       );
-      await api.uploadVideo(sessionData.session_id, blob);
-      await api.triggerAnalysis(sessionData.session_id);
-      router.push(`/results/${sessionData.session_id}`);
+      sessionStorage.setItem(`session-token:${sessionData.session_id}`, sessionData.session_token);
+      await api.uploadVideo(sessionData.session_id, blob, sessionData.session_token);
+      await api.triggerAnalysis(sessionData.session_id, sessionData.session_token);
+      router.push(`/results/${sessionData.session_id}?token=${encodeURIComponent(sessionData.session_token)}`);
       return true;
     } catch (err: unknown) {
       console.error("❌ ERROR in handleUploadFlow:", err);

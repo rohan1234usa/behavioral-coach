@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { api, type AnalysisData } from '@/services/api';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -36,8 +36,14 @@ type ResultResponse = {
 
 export default function ResultPage() {
   const { id } = useParams();
+  const sessionId = Array.isArray(id) ? id[0] : id;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryToken = searchParams.get('token');
+  const sessionToken = queryToken || (typeof window !== 'undefined' ? sessionStorage.getItem(`session-token:${sessionId}`) : null);
   const [data, setData] = useState<AnalysisData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reportError, setReportError] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -73,7 +79,7 @@ export default function ResultPage() {
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
       pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Analysis_Report_${id}.pdf`);
+      pdf.save(`Analysis_Report_${sessionId}.pdf`);
     } catch (error) {
       console.error('PDF Export Error:', error);
     } finally {
@@ -82,7 +88,21 @@ export default function ResultPage() {
   };
 
   useEffect(() => {
-    if (!id) return;
+    if (!sessionId) return;
+    if (queryToken) {
+      sessionStorage.setItem(`session-token:${sessionId}`, queryToken);
+      router.replace(`/results/${sessionId}`);
+    }
+  }, [queryToken, router, sessionId]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    if (!sessionToken) {
+      setReportError('This report link is missing its session access token.');
+      setLoading(false);
+      return;
+    }
+
     let pollCount = 0;
     const maxPolls = 150; // ~5 minutes at 2s intervals
     const interval = setInterval(async () => {
@@ -90,26 +110,37 @@ export default function ResultPage() {
       if (pollCount > maxPolls) {
         setLoading(false);
         setData(null);
+        setReportError('Timed out while waiting for analysis to complete.');
         clearInterval(interval);
         return;
       }
       try {
-        const result = await api.getResults(id as string) as ResultResponse;
+        const result = await api.getResults(sessionId, sessionToken) as ResultResponse;
         if (result.status === 'completed' && result.data) {
           setData(result.data);
           setLoading(false);
+          setReportError(null);
           clearInterval(interval);
         } else if (result.status === 'failed') {
           setLoading(false);
           setData(null);
+          setReportError('Analysis failed for this session.');
           clearInterval(interval);
         }
-      } catch {
-        // Network error — keep trying
+      } catch (error) {
+        const status = typeof error === 'object' && error && 'response' in error
+          ? (error as { response?: { status?: number } }).response?.status
+          : undefined;
+        if (status === 401 || status === 403 || status === 404) {
+          setLoading(false);
+          setData(null);
+          setReportError('You do not have access to this report, or it no longer exists.');
+          clearInterval(interval);
+        }
       }
     }, 2000);
     return () => clearInterval(interval);
-  }, [id]);
+  }, [sessionId, sessionToken]);
 
   if (loading) return (
     <InteractiveParticles 
@@ -118,9 +149,9 @@ export default function ResultPage() {
     />
   );
 
-  if (!data) return <div className="p-8 text-destructive font-sans font-medium">Report Generation Failed</div>;
+  if (!data || !sessionToken || !sessionId) return <div className="p-8 text-destructive font-sans font-medium">{reportError || 'Report Generation Failed'}</div>;
 
-  const videoUrl = api.getVideoUrl(id as string);
+  const videoUrl = api.getVideoUrl(sessionId, sessionToken);
 
   return (
     <div className="min-h-screen bg-background text-foreground font-body p-6 md:p-12">
@@ -134,7 +165,7 @@ export default function ResultPage() {
             </Link>
             <h1 className="text-4xl md:text-5xl font-sans font-bold text-foreground mb-2">Analysis Report</h1>
             <div className="flex gap-6 text-sm text-muted-foreground font-mono mt-4">
-              <span className="flex items-center gap-2"><FileText className="w-4 h-4" /> REF: {id}</span>
+              <span className="flex items-center gap-2"><FileText className="w-4 h-4" /> REF: {sessionId}</span>
               <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> {data.created_at ? new Date(data.created_at).toLocaleDateString() : new Date().toLocaleDateString()}</span>
               <span className="flex items-center gap-2"><User className="w-4 h-4" /> {data.candidate_name || "Candidate"}</span>
             </div>
@@ -302,7 +333,7 @@ export default function ResultPage() {
         {/* Hidden PDF Content: Rendered off-screen for capture */}
         <div style={{ position: 'fixed', left: '-2000px', top: '0', width: '800px', zIndex: -100 }}>
           <div id="pdf-report-content">
-            {data && <PDFReport data={data} sessionId={id as string} />}
+            {data && sessionId && <PDFReport data={data} sessionId={sessionId} />}
           </div>
         </div>
       </div>

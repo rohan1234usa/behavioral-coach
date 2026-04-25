@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { api } from '@/services/api';
 import { Loader2, Briefcase, FileText, Sparkles, Pencil, Volume2, VolumeX } from 'lucide-react';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
@@ -10,6 +11,7 @@ interface QuestionSetupProps {
 }
 
 export default function QuestionSetup({ onQuestionSelected }: QuestionSetupProps) {
+    const { data: session } = useSession();
     const [mode, setMode] = useState<'manual' | 'ai'>('ai');
     const [manualInput, setManualInput] = useState('');
 
@@ -58,7 +60,12 @@ export default function QuestionSetup({ onQuestionSelected }: QuestionSetupProps
         setStreamedText('');
         
         try {
-            const stream = await api.generateQuestionsStream(company, role, resume || undefined);
+            const stream = await api.generateQuestionsStream(
+                company,
+                role,
+                resume || undefined,
+                { email: session?.user?.email, name: session?.user?.name }
+            );
             if (!stream) throw new Error("No stream returned");
 
             const reader = stream.getReader();

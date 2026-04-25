@@ -1,7 +1,14 @@
-from fastapi import APIRouter, HTTPException, Depends
+import os
+import secrets
+import tempfile
 from typing import Optional
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+
+from app.api.deps import CurrentUser, get_accessible_session, get_current_user
+from app.core.config import settings
 from app.services.s3 import s3_service
 from app.db.base import get_db
 from app.db.models import Session as UserSession
@@ -11,36 +18,24 @@ router = APIRouter()
 class UploadRequest(BaseModel):
     file_type: str = "video/webm"
     question: str = Field(default="Tell me about yourself.", min_length=1, max_length=500)
-    user_email: Optional[str] = Field(default=None, max_length=320)
-    user_name: Optional[str] = Field(default=None, max_length=120)
+    user_email: Optional[str] = Field(default=None, max_length=320, deprecated=True)
+    user_name: Optional[str] = Field(default=None, max_length=120, deprecated=True)
 
-@router.post("/presigned-url")
-def get_upload_url(payload: UploadRequest, db: Session = Depends(get_db)):
-    from app.db.models import User # Import here to avoid circular deps if any
+@router.post("/upload/presigned-url")
+def get_upload_url(
+    payload: UploadRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     if payload.file_type != "video/webm":
         raise HTTPException(status_code=400, detail="Only WebM video uploads are supported")
-    
-    # 1. Handle User Association
-    user_id = None
-    if payload.user_email:
-        user = db.query(User).filter(User.email == payload.user_email).first()
-        if not user:
-            user = User(
-                email=payload.user_email, 
-                full_name=payload.user_name or "Candidate",
-                target_role="General"
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-        user_id = user.id
 
-    # 2. Create Session Record first to get the ID
     new_session = UserSession(
         question_text=payload.question,
         video_s3_key="temp", # Temporary
         status="created",
-        user_id=user_id
+        user_id=current_user.id,
+        access_token=secrets.token_urlsafe(32),
     )
     db.add(new_session)
     db.commit()
@@ -59,6 +54,49 @@ def get_upload_url(payload: UploadRequest, db: Session = Depends(get_db)):
         
     return {
         "upload_url": url, 
-        "video_key": file_key,
-        "session_id": new_session.id
+        "session_id": new_session.id,
+        "session_token": new_session.access_token,
     }
+
+
+@router.post("/sessions/{session_id}/upload")
+def upload_video_proxy(
+    file: UploadFile = File(...),
+    db_session: UserSession = Depends(get_accessible_session),
+    db: Session = Depends(get_db),
+):
+    if file.content_type != "video/webm":
+        raise HTTPException(status_code=400, detail="Only WebM video uploads are supported")
+
+    bytes_written = 0
+    temp_path = None
+    try:
+        file_key = f"{db_session.id}.webm"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as temp_file:
+            temp_path = temp_file.name
+            while chunk := file.file.read(1024 * 1024):
+                bytes_written += len(chunk)
+                if bytes_written > settings.MAX_VIDEO_UPLOAD_BYTES:
+                    raise HTTPException(status_code=413, detail="Video upload is too large")
+                temp_file.write(chunk)
+
+        s3_service.s3_client.upload_file(
+            temp_path,
+            settings.S3_BUCKET_NAME,
+            file_key,
+            ExtraArgs={'ContentType': 'video/webm'}
+        )
+
+        db_session.status = "uploaded"
+        db.commit()
+        print(f"✅ Successfully proxied upload for session: {db_session.id}")
+        return {"status": "success", "key": file_key}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Proxy Upload Error for session {db_session.id}: {e}")
+        raise HTTPException(status_code=500, detail="Upload failed")
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)

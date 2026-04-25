@@ -1,10 +1,12 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
+from app.api.deps import CurrentUser, get_accessible_session, get_current_user
 from app.db.base import get_db, SessionLocal
 from app.db.models import Session as UserSession, AnalysisResult, CoachingPlan
 from app.clients.imentiv import get_imentiv_client
 from app.services.s3 import s3_service
 from app.services.genai import genai_service
+from app.services.analysis_jobs import enqueue_analysis_job
 from app.core.config import settings
 import os
 import time
@@ -101,6 +103,7 @@ def run_real_pipeline(session_id: int):
         clarity = float(results.get("clarity_score", 0.0))
         resilience = float(results.get("resilience_score", 0.0))
         engagement = float(results.get("engagement_score", 0.0))
+        emotions = {}
         
         # -- Dominant Emotion --
         dominant_emotion = results.get("dominant_emotion", None)
@@ -274,6 +277,11 @@ def run_real_pipeline(session_id: int):
                 
                 print(f"📐 Derived scores: conf={confidence:.1f} clar={clarity:.1f} eng={engagement:.1f} res={resilience:.1f} dom={dominant_emotion}", flush=True)
 
+        elif isinstance(results.get("emotions"), dict):
+            emotions = results.get("emotions", {})
+        elif isinstance(results.get("video_emotions"), dict):
+            emotions = results.get("video_emotions", {})
+
         # Final safety clamp (scores are already in 0-1 range)
         
         confidence = max(0.0, min(confidence, 1.0))
@@ -396,53 +404,40 @@ from app.services.stats import StatsService
 # --- ENDPOINTS ---
 
 @router.get("/confidence")
-def get_confidence_score(db: Session = Depends(get_db)):
+def get_confidence_score(current_user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Returns the user's current 'Confidence & Momentum' score.
     """
-    return StatsService.calculate_confidence_score(db)
+    return StatsService.calculate_confidence_score(db, user_id=current_user.id)
 
 
 @router.post("/{session_id}/trigger")
-def trigger_analysis(session_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    db_session = db.query(UserSession).filter(UserSession.id == session_id).first()
-    if not db_session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    if db_session.status == "completed":
-        return {"status": "Analysis already completed", "session_id": session_id}
-    if db_session.status == "processing":
-        return {"status": "Analysis already queued", "session_id": session_id}
-    if db_session.status not in {"uploaded", "failed"}:
-        raise HTTPException(status_code=409, detail="Upload must complete before analysis can start")
-
-    db_session.status = "processing"
-    db.commit()
-    background_tasks.add_task(run_real_pipeline, session_id)
-    return {"status": "Analysis queued", "session_id": session_id}
+def trigger_analysis(
+    background_tasks: BackgroundTasks,
+    db_session: UserSession = Depends(get_accessible_session),
+    db: Session = Depends(get_db),
+):
+    return enqueue_analysis_job(db, db_session, background_tasks, run_real_pipeline)
 
 @router.get("/{session_id}/result")
-def get_analysis_result(session_id: int, db: Session = Depends(get_db)):
+def get_analysis_result(db_session: UserSession = Depends(get_accessible_session), db: Session = Depends(get_db)):
     # Fetch result and session
-    result = db.query(AnalysisResult).filter(AnalysisResult.session_id == session_id).first()
-    session = db.query(UserSession).filter(UserSession.id == session_id).first()
-    
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+    result = db.query(AnalysisResult).filter(AnalysisResult.session_id == db_session.id).first()
         
     # Fetch User if available
     candidate_name = "Candidate"
-    if session.user_id:
+    if db_session.user_id:
         from app.db.models import User
-        user = db.query(User).filter(User.id == session.user_id).first()
+        user = db.query(User).filter(User.id == db_session.user_id).first()
         if user and user.full_name:
             candidate_name = user.full_name
 
     # Check process status
     if not result:
         return {
-            "status": session.status, 
+            "status": db_session.status,
             "data": None,
-            "created_at": session.created_at,
+            "created_at": db_session.created_at,
             "candidate_name": candidate_name
         }
         
@@ -481,18 +476,18 @@ def get_analysis_result(session_id: int, db: Session = Depends(get_db)):
         "engagement_score": result.engagement_score,
         "dominant_emotion": result.dominant_emotion,
         "metrics_data": result.metrics_data,
-        "created_at": session.created_at,
+        "created_at": db_session.created_at,
         "candidate_name": candidate_name,
     }
     
-    return {"status": session.status, "data": response_data}
+    return {"status": db_session.status, "data": response_data}
 
 @router.get("/coaching")
-def get_coaching_plan(db: Session = Depends(get_db)):
+def get_coaching_plan(current_user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Returns the user's most recent CoachingPlan to populate the dashboard.
     """
-    plan = db.query(CoachingPlan).order_by(CoachingPlan.created_at.desc()).first()
+    plan = db.query(CoachingPlan).filter(CoachingPlan.user_id == current_user.id).order_by(CoachingPlan.created_at.desc()).first()
     if not plan:
         return {"status": "none", "data": None}
     
@@ -515,7 +510,7 @@ class CoachingPlanRequest(BaseModel):
     company: str = ""
 
 @router.post("/coaching/generate")
-def generate_coaching_plan(req: CoachingPlanRequest, db: Session = Depends(get_db)):
+def generate_coaching_plan(req: CoachingPlanRequest, current_user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Analyzes the last 3-5 sessions, calls GenAI to benchmark and build an action plan.
     """
@@ -523,18 +518,16 @@ def generate_coaching_plan(req: CoachingPlanRequest, db: Session = Depends(get_d
     session_data = db.query(UserSession, AnalysisResult).join(
         AnalysisResult, UserSession.id == AnalysisResult.session_id
     ).filter(
-        UserSession.status == "completed"
+        UserSession.status == "completed",
+        UserSession.user_id == current_user.id,
     ).order_by(UserSession.created_at.desc()).limit(5).all()
     
     if not session_data:
         raise HTTPException(status_code=400, detail="Not enough completed sessions to analyze. Please complete at least one session.")
     
     # Try to grab the user's target role, default to Software Engineer if none
-    from app.db.models import User
-    user = db.query(User).first()
-    
     # Use request inputs if provided, else fall back to user profile / defaults
-    target_role = req.target_role.strip() or (user.target_role if user and user.target_role else "Software Engineer")
+    target_role = req.target_role.strip() or "Software Engineer"
     target_company = req.company.strip() or "FAANG"
     
     # 2. Build the session_data context String
@@ -562,6 +555,7 @@ def generate_coaching_plan(req: CoachingPlanRequest, db: Session = Depends(get_d
     
     # 4. Save to DB
     new_plan = CoachingPlan(
+        user_id=current_user.id,
         target_role=target_role,
         industry_benchmark_notes=ai_response.get("industry_benchmark_notes", "Benchmark unavailable."),
         core_weakness=ai_response.get("core_weakness", "Unknown weakness"),

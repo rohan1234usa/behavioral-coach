@@ -4,17 +4,18 @@ import { useEffect, useState } from 'react';
 import { api, ConfidenceData } from '@/services/api';
 import { RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from 'recharts';
 import { Loader2, Trophy, Zap } from 'lucide-react';
+import type { AuthContext } from '@/services/api';
 
-export default function ConfidenceGauge() {
+export default function ConfidenceGauge({ auth }: { auth?: AuthContext }) {
     const [data, setData] = useState<ConfidenceData | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        api.getConfidenceScore()
+        api.getConfidenceScore(auth)
             .then(setData)
             .catch((err: unknown) => console.error("Failed to fetch confidence:", err))
             .finally(() => setLoading(false));
-    }, []);
+    }, [auth]);
 
     if (loading) return <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin text-emerald-500" /></div>;
     if (!data) return null;
