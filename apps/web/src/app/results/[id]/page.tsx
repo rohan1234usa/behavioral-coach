@@ -32,6 +32,7 @@ import {
 type ResultResponse = {
   status: string;
   data: AnalysisData | null;
+  error_message?: string | null;
 };
 
 export default function ResultPage() {
@@ -124,7 +125,7 @@ export default function ResultPage() {
         } else if (result.status === 'failed') {
           setLoading(false);
           setData(null);
-          setReportError('Analysis failed for this session.');
+          setReportError(result.error_message ? `Analysis failed: ${result.error_message}` : 'Analysis failed for this session.');
           clearInterval(interval);
         }
       } catch (error) {

@@ -21,6 +21,7 @@ class Session(Base):
     
     # Status: 'created', 'uploading', 'processing', 'completed', 'failed'
     status = Column(String, default="created") 
+    error_message = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     
     analysis = relationship("AnalysisResult", back_populates="session", uselist=False)

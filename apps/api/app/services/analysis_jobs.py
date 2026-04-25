@@ -23,6 +23,7 @@ def enqueue_analysis_job(
         raise HTTPException(status_code=409, detail="Upload must complete before analysis can start")
 
     db_session.status = RUNNING_STATUS
+    db_session.error_message = None
     db.commit()
     background_tasks.add_task(runner, db_session.id)
     return {"status": "Analysis queued", "session_id": db_session.id}

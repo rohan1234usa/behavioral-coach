@@ -379,6 +379,7 @@ def run_real_pipeline(session_id: int):
         db_session = db.query(UserSession).filter(UserSession.id == session_id).first()
         if db_session:
             db_session.status = "completed"
+            db_session.error_message = None
             
         db.commit()
         print(f"✅ Analysis for Session {session_id} saved. Scores: conf={confidence:.2f}, eng={engagement:.2f}, clar={clarity:.2f}, res={resilience:.2f}", flush=True)
@@ -391,6 +392,7 @@ def run_real_pipeline(session_id: int):
         db_session = db.query(UserSession).filter(UserSession.id == session_id).first()
         if db_session:
             db_session.status = "failed"
+            db_session.error_message = str(e)[:500]
             db.commit()
     finally:
         db.close()
@@ -438,7 +440,8 @@ def get_analysis_result(db_session: UserSession = Depends(get_accessible_session
             "status": db_session.status,
             "data": None,
             "created_at": db_session.created_at,
-            "candidate_name": candidate_name
+            "candidate_name": candidate_name,
+            "error_message": db_session.error_message,
         }
         
     # Merge existing result data with extra session info

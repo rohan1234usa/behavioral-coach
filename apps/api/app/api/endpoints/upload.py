@@ -88,6 +88,7 @@ def upload_video_proxy(
         )
 
         db_session.status = "uploaded"
+        db_session.error_message = None
         db.commit()
         print(f"✅ Successfully proxied upload for session: {db_session.id}")
         return {"status": "success", "key": file_key}

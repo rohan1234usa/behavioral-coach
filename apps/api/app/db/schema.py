@@ -31,6 +31,7 @@ def init_database():
     # Lightweight repair for deployed MVP databases created before migrations existed.
     # Alembic should own future schema changes once introduced.
     _ensure_column("sessions", "access_token", "access_token VARCHAR")
+    _ensure_column("sessions", "error_message", "error_message TEXT")
     _ensure_index("ix_sessions_access_token", "sessions", "access_token")
 
     db = SessionLocal()
