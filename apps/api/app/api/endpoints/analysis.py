@@ -71,7 +71,8 @@ def run_real_pipeline(session_id: int):
         upload_result = client.video.upload(
             temp_file,
             title=f"Session {session_id}",
-            description="Behavioral Coach Analysis Session"
+            description="Behavioral Coach Analysis Session",
+            user_consent_version=settings.IMENTIV_USER_CONSENT_VERSION,
         )
         video_id = upload_result.get("video_id") or upload_result.get("id")
         

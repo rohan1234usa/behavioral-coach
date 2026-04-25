@@ -111,6 +111,7 @@ MAX_RESUME_UPLOAD_BYTES=5242880
 
 # --- AI Integrations ---
 IMENTIV_API_KEY=your_imentiv_key
+IMENTIV_USER_CONSENT_VERSION=2.0.0
 GEMINI_API_KEY=your_gemini_key
 OPENAI_API_KEY=your_openai_key
 ```

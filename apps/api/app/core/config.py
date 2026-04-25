@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     # Imentiv AI
     IMENTIV_API_KEY: str = ""
+    IMENTIV_USER_CONSENT_VERSION: str = "2.0.0"
 
     # S3 Endpoint (Optional, for MinIO)
     S3_ENDPOINT_URL: str = ""

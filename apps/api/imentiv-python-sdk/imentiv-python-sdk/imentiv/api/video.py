@@ -20,7 +20,11 @@ class VideoAPI:
         self.client = client
 
     def upload(
-        self, file_path: str, title: Optional[str] = None, description: str = ""
+        self,
+        file_path: str,
+        title: Optional[str] = None,
+        description: str = "",
+        user_consent_version: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Upload a video file for analysis.
@@ -29,6 +33,7 @@ class VideoAPI:
             file_path: Path to the video file to upload.
             title: Optional title for the video. Defaults to filename.
             description: Optional description for the video.
+            user_consent_version: Imentiv consent version accepted for this upload.
 
         Returns:
             Dictionary containing the upload response with video ID.
@@ -45,6 +50,8 @@ class VideoAPI:
         with open(file_path, "rb") as f:
             files = {"video_file": f}
             data = {"title": title, "description": description}
+            if user_consent_version:
+                data["user_consent_version"] = user_consent_version
             # Use v2 endpoint
             response = self.client.post("v2/videos", files=files, data=data)
             

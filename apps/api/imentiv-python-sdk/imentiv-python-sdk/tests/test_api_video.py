@@ -27,10 +27,12 @@ class TestVideoAPI:
 
     def test_upload_calls_post_with_file(self, video_api, mock_video_upload_response):
         """Test that upload opens file and calls post."""
-        with patch.object(video_api.client, "post", return_value=mock_video_upload_response):
+        with patch.object(video_api.client, "post", return_value=mock_video_upload_response) as mock_post:
             with patch("builtins.open", mock_open(read_data=b"fake video data")):
-                result = video_api.upload("/path/to/video.mp4")
+                result = video_api.upload("/path/to/video.mp4", user_consent_version="2.0.0")
 
+        mock_post.assert_called_once()
+        assert mock_post.call_args.kwargs["data"]["user_consent_version"] == "2.0.0"
         assert result == mock_video_upload_response
         assert result["video_id"] == "video_abc123"
 
