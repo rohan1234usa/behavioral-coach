@@ -7,6 +7,10 @@ __pycache__/
 .env
 .env.local
 
+# Local databases / generated app state
+*.db
+*.sqlite3
+
 # Node/Web junk (just in case)
 node_modules/
 .next/

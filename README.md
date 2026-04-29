@@ -1,136 +1,151 @@
-# Behavioural Interview Coach 🎯
+# Behavioral Interview Coach
 
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Google Gemini](https://img.shields.io/badge/Google%20Gemini-8E75B2?style=for-the-badge&logo=google%20gemini&logoColor=white)](https://deepmind.google/technologies/gemini/)
-[![Imentiv AI](https://img.shields.io/badge/Imentiv%20AI-FF6B6B?style=for-the-badge&logo=ai&logoColor=white)](https://imentiv.ai/)
-[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
-[![Live Demo](https://img.shields.io/badge/Demo-Visit%20Live%20Site-2ea44f?style=for-the-badge&logo=vercel)](https://behavioral-interview-coach.vercel.app/)
+Behavioral Interview Coach is a monorepo for practicing behavioral interviews with AI-assisted question generation, video capture, multimodal analysis, and session review.
 
-> **Version 1.0.0**
+The current product combines:
 
-> An AI-powered training platform that quantifies "Soft Skills" by analyzing facial micro-expressions, vocal prosody, and speech clarity during mock interviews.
+- `apps/web`: Next.js 16, React 19, NextAuth, Tailwind CSS 4
+- `apps/api`: FastAPI, SQLAlchemy, Pydantic Settings
+- Storage: S3-compatible object storage via `boto3` (AWS S3 or MinIO)
+- AI services: Imentiv for interview analysis, Gemini for question generation and coaching plans
 
-  
+## Current Product Surface
 
-## 📖 Executive Summary
+The codebase currently implements:
 
-The **Behavioural Interview Coach** addresses the "Soft Skill Gap" in technical hiring. While traditional tools focus on code correctness (LeetCode), this platform focuses on **delivery**.
+- A public landing page plus `about` and `settings` routes
+- A practice arena where users can:
+  - type a question manually, or
+  - generate behavioral questions from company, role, and an optional resume PDF
+- Google sign-in through NextAuth for saved history and coaching features
+- Session creation with per-session access tokens
+- Video upload to backend storage, followed by a background analysis job
+- A dashboard with:
+  - session history
+  - aggregate confidence / clarity / resilience / engagement metrics
+  - a generated coaching plan based on recent completed sessions
+- A results page with:
+  - video replay
+  - transcript snippets
+  - emotional timeline
+  - feedback tips
+  - PDF export
 
-Using advanced computer vision and audio analysis, the application records user responses to behavioral questions (e.g., *"Tell me about a time you failed"*) and provides objective, quantified feedback on **Confidence**, **Clarity**, **Resilience**, and **Engagement**.
-
------
-
-## ✨ Key Features
-
-### 1\. The "Arena" Recorder
-
-A distraction-free, virtual interview environment.
-
-  * **Zero-Latency Preview:** Uses the native MediaStream API.
-  * **Visual Pacing:** Integrated timer and visual cues.
-  * **Direct-to-Cloud Uploads:** Secure, signed URL uploads directly to AWS S3, bypassing server bottlenecks.
-
-### 2\. Multi-Modal AI Analysis
-
-The core engine aggregates data from two distinct streams:
-
-  * **Facial Analysis (Powered by [Imentiv AI](https://imentiv.ai/)):** Leverages Imentiv AI's Video Emotion Recognition API to track Valence, Arousal, and specific Action Units (AUs) to detect stress spikes or lack of engagement.
-  * **Vocal Prosody:** Analyzes pitch jitter, volume consistency, and words-per-minute (WPM) to score vocal stability.
-
-### 3\. The "Soft Skill" Dashboard
-
-Raw data is synthesized into four actionable metrics (0-100 scale):
-
-  * **🛡️ Confidence:** Stability of voice + facial certainty.
-  * **🧠 Clarity:** WPM optimization + pause analysis.
-  * **❤️ Resilience:** Recovery time from stress/anxiety markers.
-  * **⚡ Engagement:** Variation in pitch and facial expressiveness.
-
-### 4\. Session History & Replay
-
-  * **Progress Tracking:** View historical trends of your scores over time.
-  * **Video Replay:** Securely stream past attempts with synchronized data overlays.
-
------
-
-## 🏗 Technical Architecture
-
-The project utilizes a **Monorepo** structure with a "Hollow Core" dev strategy that allows for interchangeable AI modules.
+## Repo Layout
 
 ```text
-behavioural-coach/
+behavioral-interview-coach/
 ├── apps/
-│   ├── web/                 # Frontend: Next.js 16 (App Router), Tailwind, Recharts
-│   └── api/                 # Backend: FastAPI, SQLAlchemy, Pydantic
-├── docker-compose.yml       # Orchestration (Postgres + API)
-└── .env                     # Configuration Secrets
+│   ├── api/
+│   │   ├── app/                          # FastAPI app
+│   │   └── imentiv-python-sdk/           # Vendored Imentiv SDK
+│   └── web/                              # Next.js frontend
+├── scripts/
+├── docker-compose.yml
+└── README.md
 ```
 
-### Data Flow
+## How The App Works
 
-1.  **Client:** Requests a secure "upload slot" from the API.
-2.  **API:** Returns an AWS S3 Presigned URL.
-3.  **Client:** Uploads video binary directly to S3.
-4.  **Client:** Triggers the Analysis Pipeline via Webhook.
-5.  **Worker:** Backend processes the video using Imentiv AI's Video Emotion Recognition API for facial analysis and additional AI services for vocal analysis, calculates metrics, and stores results in PostgreSQL.
-6.  **Client:** Polls for completion and renders the Dashboard.
+The implemented request flow is:
 
------
+1. The user signs in on the frontend if they want persistent history or coaching.
+2. The arena creates a session through `POST /api/upload/presigned-url`.
+3. The API creates a `sessions` row and returns a session access token.
+4. The frontend uploads the recorded `video/webm` file through `POST /api/sessions/{id}/upload`.
+5. The frontend triggers analysis through `POST /api/analysis/{id}/trigger`.
+6. The API downloads the saved video from S3-compatible storage, sends it to Imentiv, derives metrics, and stores the result.
+7. The frontend polls `GET /api/analysis/{id}/result` and renders the report once analysis completes.
 
-## 🚀 Getting Started
+## Backend API Summary
+
+Important routes in `apps/api/app/api/endpoints`:
+
+- `upload.py`
+  - `POST /api/upload/presigned-url`
+  - `POST /api/sessions/{session_id}/upload`
+- `analysis.py`
+  - `GET /api/analysis/confidence`
+  - `POST /api/analysis/{session_id}/trigger`
+  - `GET /api/analysis/{session_id}/result`
+  - `GET /api/analysis/coaching`
+  - `POST /api/analysis/coaching/generate`
+- `sessions.py`
+  - `GET /api/sessions`
+  - `GET /api/sessions/{session_id}/video`
+- `questions.py`
+  - `POST /api/questions/generate`
+
+## Local Development
 
 ### Prerequisites
 
-  * **Docker Desktop** (Running)
-  * **Node.js** (v18+) & **npm**
-  * **AWS Account** (S3 Access)
+- Docker Desktop
+- Node.js 18+
+- npm
+- API keys for Imentiv and Gemini
+- Google OAuth credentials for frontend sign-in
 
-### 1\. Environment Configuration
+### 1. Configure API environment
 
-Create a `.env` file in the root directory:
+Create a root `.env` file for the FastAPI app and Docker Compose.
 
-```bash
-# --- Infrastructure ---
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=password
-POSTGRES_DB=coach_prod
-DATABASE_URL=postgresql://postgres:password@db:5432/coach_prod
-FRONTEND_ORIGINS=https://behavioral-interview-coach.vercel.app
+For local Docker development with the included MinIO service:
+
+```dotenv
+DATABASE_URL=postgresql://postgres:password@db:5432/coach_dev
+FRONTEND_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 AUTO_CREATE_DB=true
 
-# --- AWS Storage ---
-AWS_ACCESS_KEY_ID=your_access_key
-AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_ACCESS_KEY_ID=minioadmin
+AWS_SECRET_ACCESS_KEY=minioadmin
 AWS_REGION=us-east-1
-S3_BUCKET_NAME=your-production-bucket
+S3_BUCKET_NAME=behavioral-coach-dev
+S3_ENDPOINT_URL=http://minio:9000
 MAX_VIDEO_UPLOAD_BYTES=104857600
 MAX_RESUME_UPLOAD_BYTES=5242880
 
-# --- AI Integrations ---
 IMENTIV_API_KEY=your_imentiv_key
 IMENTIV_USER_CONSENT_VERSION=2.0.0
 GEMINI_API_KEY=your_gemini_key
-OPENAI_API_KEY=your_openai_key
 ```
 
-### 2\. Launch Backend (Docker)
+Notes:
 
-Spins up the Database and API Gateway.
+- If `DATABASE_URL` is missing and you run the API outside Docker, `apps/api/app/main.py` falls back to `sqlite:///./sql_app.db`.
+- `OPENAI_API_KEY` is not currently used by the checked-in application code.
+
+### 2. Configure frontend environment
+
+Create `apps/web/.env.local`:
+
+```dotenv
+NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:8000
+NEXT_PUBLIC_STORAGE_URL=http://127.0.0.1:9000
+AUTH_SECRET=replace-with-a-random-secret
+AUTH_GOOGLE_ID=your_google_oauth_client_id
+AUTH_GOOGLE_SECRET=your_google_oauth_client_secret
+```
+
+Optional frontend env vars:
+
+- `NEXT_PUBLIC_GA_ID` for Google Analytics
+
+### 3. Start backend services
 
 ```bash
-docker-compose up --build -d
+docker compose up --build db api minio
 ```
 
-  * **API Health:** `http://localhost:8000/`
-  * **Runtime Health:** `http://localhost:8000/health`
-  * **Swagger Docs:** `http://localhost:8000/docs`
+Expected local endpoints:
 
-### 3\. Launch Frontend (Local)
+- API root: `http://127.0.0.1:8000/`
+- API health: `http://127.0.0.1:8000/health`
+- Swagger docs: `http://127.0.0.1:8000/docs`
+- MinIO API: `http://127.0.0.1:9000`
+- MinIO console: `http://127.0.0.1:9001`
 
-Runs the Next.js application.
+### 4. Start the frontend
 
 ```bash
 cd apps/web
@@ -138,35 +153,61 @@ npm install
 npm run dev
 ```
 
-  * **Application:** `http://localhost:3000`
+Frontend URL:
 
------
+- `http://localhost:3000`
 
-## 🧪 Development Workflow
+## Database Behavior
 
-### Running Tests
+The app currently relies on startup-time schema creation and light repair logic:
 
-The project includes unit tests for the scoring algorithms and integration tests for the S3 upload flow.
+- `Base.metadata.create_all(...)` runs when `AUTO_CREATE_DB=true`
+- missing `sessions.access_token` and `sessions.error_message` columns are repaired at startup
+- existing sessions without an access token are backfilled
+
+Alembic migrations are not yet part of this repo.
+
+## Testing And Verification
+
+What exists today:
+
+- API-side test modules in `apps/api/test_*.py`
+- a helper script at `scripts/test_options.py`
+- frontend linting via `npm run lint`
+
+Current caveat:
+
+- `pytest` is not pinned in `apps/api/requirements.txt`, so you may need to install it separately in your API environment before running the API tests.
+
+Example commands:
 
 ```bash
-# Run Backend Tests
-docker-compose exec api pytest
+# frontend lint
+cd apps/web
+npm run lint
 
-# Run Frontend Linter
-cd apps/web && npm run lint
+# API tests if pytest is available in your environment
+cd apps/api
+pytest
 ```
 
-### Database Migrations
+## Known Caveats
 
-The API currently auto-creates and lightly repairs MVP schema at startup when `AUTO_CREATE_DB=true`.
-Move new production schema changes into Alembic migrations before adding more tables or indexes.
+- The frontend currently uploads videos through `POST /api/sessions/{id}/upload`; the presigned URL returned by `POST /api/upload/presigned-url` is created but not used by the browser flow.
+- `docker-compose.yml` includes a Windows bind mount for `C:\Users\rohan\Downloads\imentiv-python-sdk`, even though the repo also contains a vendored SDK copy under `apps/api/imentiv-python-sdk`. If that external path does not exist on your machine, adjust the compose file before starting the API container.
+- `apps/web/README.md` is still the default Next.js starter README and does not describe this project.
 
-Alembic is the intended next step for durable migrations, but migration files are not yet part of this repo.
+## Deployment Notes
 
------
+The checked-in code is aimed more at MVP/local development than production hardening. Before production use, expect to revisit:
 
-## 🔮 Future Roadmap (v2.0)
+- database migrations
+- secret management
+- storage bucket provisioning
+- background job durability
+- authentication and authorization hardening
+- upload strategy consistency
 
-  * **Auth0 Integration:** Secure user accounts and personalized history.
-  * **Real-time Feedback:** WebSocket integration for live coaching during the recording.
-  * **Comparison Mode:** Compare your video side-by-side with "Gold Standard" answers.
+## License
+
+MIT. See [LICENSE](LICENSE).
